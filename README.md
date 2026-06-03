@@ -2,13 +2,14 @@
 
 This project provides a comprehensive backport of the **Qualcomm MSM DRM/KMS driver from Linux 5.19** to the **Downstream kernel bases**. 
 
-It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Adreno) on legacy vendor kernels
+It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Adreno) on legacy vendor kernels.
 
 **Snapdragon 845 (SDM845)** platform is currently being tested on OnePlus 6/6T `enchilada`/`fajita`.
 
 Here is the kernel I am using. Go check em out: [EdwinMoq](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19)
+Kernel version: 4.19.
 
-## Architecture:
+## Architecture
 
 This driver is going to be a part of **Andrunix** (my main project), and it's going to utilize a **dual boot.img scheme** for running native Linux on Android hardware:
 
@@ -17,7 +18,7 @@ This driver is going to be a part of **Andrunix** (my main project), and it's go
 
 **NOTE:** This approach might eventually be changed to do a live swap while being booted into Android (I have patched SDE's uninit flow — just haven't gotten around to releasing it, yet.)
 
-But for now this approach avoids the extreme complexity of live SDE ↔ MSM driver switching, which is notoriously prone to unfixable teardown race conditions in downstream kernels.
+But for now, this approach avoids the extreme complexity of live SDE ↔ MSM driver switching, which is notoriously prone to unfixable teardown race conditions in downstream kernels.
 
 ## Key Features
 
@@ -52,19 +53,20 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional but it is currently broken for downstream (panel times out at least for me. 🙃)
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional, but it is currently broken for downstream (panel times out at least for me. 🙃)
 
 *   **Probing:** Driver probes and initializes fully.
-*   **Display:** `modetest` works(as long as gmu_resume is never touched). Early framebuffer hand-off works.
+*   **Display:** `modetest` works (as long as gmu_resume is never touched). Early framebuffer hand-off works.
 *   **IOMMU:** Translation and context bank allocation seem stable.
 *   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
 
 ## 🛠️ Integration
 
 1.  Copy the `msm/` directory into `drivers/gpu/drm/msm/`.
-2.  Add the contents of `msm/Kconfig` and `msm/Makefile` to your kernel build system.
-3.  Ensure your Device Tree (DT) uses mainline-style compatible strings (e.g., `qcom,sdm845-mdss`, `qcom,adreno-630.2`).
-4.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
+2.  Backport the mainline MDSS/DPU Device Tree (DT) for your SoC. You can check out mine in `dtbs/oneplus6`.
+	- You need everything listed in `soc: soc {`
+	- The Framebuffer node.
+3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
 
 ## 📄 Technical Documentation
 See [msm/shims/NOTE.md](msm/shims/NOTE.md) for a deep dive into specific implementation hacks, SMMU fault analysis, and comparison with 5.4/4.19 MSM drivers.
