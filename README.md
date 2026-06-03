@@ -17,4 +17,4 @@ Drop the `drivers/gpu/drm/msm` tree directly into your kernel source root. Note 
 
 The driver isn't functional... Yet.
 
-Read: [this](https://github.com/notfound8852/msm-drm-5.19-backport?tab=readme-ov-file)
+Read: [this](https://github.com/notfound8852/msm-drm-5.19-backport/blob/main/msm/shims/NOTE.md) It'll tell you alot.
