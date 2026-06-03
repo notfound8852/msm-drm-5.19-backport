@@ -8,14 +8,14 @@ It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Ad
 
 Here is the kernel I am using. Go check em out: [EdwinMoq](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19)
 
-## Architecture::
+## Architecture:
 
-This driver is going to a part of **Andrunix** (my main project), and it's going to utilizes a **dual boot.img scheme** for running native Linux on Android hardware:
+This driver is going to be a part of **Andrunix** (my main project), and it's going to utilize a **dual boot.img scheme** for running native Linux on Android hardware:
 
 1.  **Standard Android Boot:** Uses the vendor kernel with KGSL/SDE for regular Android functionality.
 2.  **Linux Desktop Boot:** Uses a modified Device Tree (DTB) where vendor KGSL and SDE nodes are stripped and replaced with mainline-aligned MDSS/Adreno nodes, backed by this **msm-drm-5.19** driver.
 
-**NOTE:** This approach might eventually be changed to do a live swap while being booted into Android(I have patched SDE's uninit flow-just haven't gotten around to releasing it, yet.)
+**NOTE:** This approach might eventually be changed to do a live swap while being booted into Android (I have patched SDE's uninit flow — just haven't gotten around to releasing it, yet.)
 
 But for now this approach avoids the extreme complexity of live SDE ↔ MSM driver switching, which is notoriously prone to unfixable teardown race conditions in downstream kernels.
 
@@ -25,7 +25,7 @@ But for now this approach avoids the extreme complexity of live SDE ↔ MSM driv
 The core of this project is a sophisticated compatibility layer that bridges the gap between modern kernel APIs and downstream vendor implementations.
 
 *   **Interconnect (ICC) Shim:** Provides a 1:1 mapping of modern `of_icc_get()` and `icc_set_bw()` APIs onto the downstream `msm_bus_scale` framework. Supports both synchronous and asynchronous bandwidth scaling.
-*   **OPP (Operating Performance Points) Shim:** A custom implementation of the modern OPP layer. It unified frequency scaling (`clk_set_rate`) and interconnect bandwidth voting into a single `dev_pm_opp_set_opp()` call, matching 5.19 behavior.
+*   **OPP (Operating Performance Points) Shim:** A custom implementation of the modern OPP layer. It unifies frequency scaling (`clk_set_rate`) and interconnect bandwidth voting into a single `dev_pm_opp_set_opp()` call, matching 5.19 behavior.
 *   **DRM Helper Backports:** Ported modern DRM core features missing in 4.19:
     *   `drm_plane_create_blend_mode_property`
     *   `drm_writeback_connector_init_with_encoder`
@@ -39,9 +39,9 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 
 ### GPU (Adreno 630 / A6xx)
-*   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally the 5.19 driver didn't manage the CX domain this was ported from 6.x.x.
+*   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
 
-## mplementation Highlights (Fixes & Hacks)
+## Implementation Highlights (Fixes & Hacks)
 
 This backport includes several targeted fixes to address downstream-specific behavior:
 
@@ -52,12 +52,12 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional but it is currently broken for downstream (panel timesout atleast for me. 🙃)
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional but it is currently broken for downstream (panel times out at least for me. 🙃)
 
 *   **Probing:** Driver probes and initializes fully.
 *   **Display:** `modetest` works(as long as gmu_resume is never touched). Early framebuffer hand-off works.
 *   **IOMMU:** Translation and context bank allocation seem stable.
-*   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write is broken.)
+*   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
 
 ## 🛠️ Integration
 
