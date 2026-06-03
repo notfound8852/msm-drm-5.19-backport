@@ -4,8 +4,6 @@ ccflags-y += -I $(srctree)/$(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
 ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
 ccflags-$(DRM_MSM_IS_DOWNSTREAM) += -I $(srctree)/$(src)/shims
-CONFIG_DRM_MSM_DPU=y
-CONFIG_DRM_MSM_MDSS=y
 
 msm-y := \
 	adreno/adreno_device.o \

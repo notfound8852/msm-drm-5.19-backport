@@ -414,7 +414,6 @@ static inline bool msm_dp_wide_bus_available(const struct msm_dp *dp_display)
 #endif
 
 #ifdef CONFIG_DRM_MSM_MDP4
-//#ifndef CONFIG_DRM_MSM_MDP4
 void msm_mdp4_register(void);
 void msm_mdp4_unregister(void);
 #else
@@ -423,7 +422,6 @@ static inline void msm_mdp4_unregister(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MSM_MDP5
-//#ifndef CONFIG_DRM_MSM_MDP5
 void msm_mdp_register(void);
 void msm_mdp_unregister(void);
 #else
@@ -432,7 +430,6 @@ static inline void msm_mdp_unregister(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MSM_DPU
-//#ifndef CONFIG_DRM_MSM_DPU
 void msm_dpu_register(void);
 void msm_dpu_unregister(void);
 #else
@@ -441,7 +438,6 @@ static inline void msm_dpu_unregister(void) {}
 #endif
 
 #ifdef CONFIG_DRM_MSM_MDSS
-//#ifndef CONFIG_DRM_MSM_MDSS
 void msm_mdss_register(void);
 void msm_mdss_unregister(void);
 #else
