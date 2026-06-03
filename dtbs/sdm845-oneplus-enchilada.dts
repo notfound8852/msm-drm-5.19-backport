@@ -1,0 +1,12 @@
+#include "sdm845-oneplus-common.dtsi"
+
+&display_panel {
+	status = "okay";
+	compatible = "samsung,sofef00";
+};
+
+/*
+ * Disable the panel (if needed.)
+*/
+
+//DISABLE_NODE(dsi_samsung_sofef00_m_cmd);
