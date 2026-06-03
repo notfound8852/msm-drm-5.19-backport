@@ -39,7 +39,6 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 
 ### GPU (Adreno 630 / A6xx)
-*   **GPU/GMU Support:** Integrated mainline A6xx GPU driver with GMU (Graphics Management Unit) support.
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally the 5.19 driver didn't manage the CX domain this was ported from 6.x.x.
 
 ## mplementation Highlights (Fixes & Hacks)
