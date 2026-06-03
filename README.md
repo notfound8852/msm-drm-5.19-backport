@@ -6,6 +6,8 @@ It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Ad
 
 **Snapdragon 845 (SDM845)** platform is currently being tested on OnePlus 6/6T `enchilada`/`fajita`.
 
+Here is the kernel I am using. Go check em out: [EdwinMoq](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19)
+
 ## Architecture::
 
 This driver is going to a part of **Andrunix** (my main project), and it's going to utilizes a **dual boot.img scheme** for running native Linux on Android hardware:
