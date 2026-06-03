@@ -54,7 +54,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 **NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional but it is currently broken for downstream (panel timesout atleast for me. 🙃)
 
 *   **Probing:** Driver probes and initializes fully.
-*   **Display:** `modetest` works. (as long as gmu_resume is never touched)Early framebuffer hand-off works.
+*   **Display:** `modetest` works(as long as gmu_resume is never touched). Early framebuffer hand-off works.
 *   **IOMMU:** Translation and context bank allocation seem stable.
 *   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write is broken.)
 
