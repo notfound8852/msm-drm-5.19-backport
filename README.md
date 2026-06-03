@@ -21,7 +21,7 @@ But for now this approach avoids the extreme complexity of live SDE ↔ MSM driv
 
 ## Key Features
 
-### he Shim Layer (`msm/shims/`)
+### The Shim Layer (`msm/shims/`)
 The core of this project is a sophisticated compatibility layer that bridges the gap between modern kernel APIs and downstream vendor implementations.
 
 *   **Interconnect (ICC) Shim:** Provides a 1:1 mapping of modern `of_icc_get()` and `icc_set_bw()` APIs onto the downstream `msm_bus_scale` framework. Supports both synchronous and asynchronous bandwidth scaling.
