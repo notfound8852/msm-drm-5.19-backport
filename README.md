@@ -65,6 +65,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 1.  Copy the `msm/` directory into `drivers/gpu/drm/msm/`.
 2.  Backport the mainline MDSS/DPU Device Tree (DT) for your SoC..
 	- You can use mine as a reference check: `dtbs/sdm845-oneplus-common.dtsi`-that's the main backport. `dtbs/sdm845-oneplus-enchilada.dtsi` and `dtbs/sdm845-oneplus-fajita.dtsi` build upon that.
+**Quick FYI:** The `dtbs` folder in this repo is direct copy of the one from EdwinMoq's kernel repo.
 3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
 
 ## 📄 Technical Documentation
