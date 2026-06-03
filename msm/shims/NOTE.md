@@ -123,13 +123,9 @@ As of right now, I don't know what this is, let alone what it could mean.
 	- What happens if we stub that line out and force KGSL to probe?
 
 * **MDSS/DPU pipline:** Seems to be working, modetest prints fine as long as we skip `gmu_resume`
-	- pixel_clk_src doesn't run at the rounded rate.
-	- pixel_clk_src misbehaving likely causes the context faults.
-	- **Cause:** Most likely a 4.19 quirk as the proprietry SDE driver seems to be managing the parent separatly.
-	- The Panel driver doesn't implement an enable function (???). 
-
-* **FIXES:** 
-	- Understand how downstream SDE manages the RCG, figure out if it's a downstream quirk, document it.
+    - Panel init timeout.
+* **FIXES:**
+    - Haven't looked into it, yet...
 
 ## FIXES/added funcs to MSM:
 
