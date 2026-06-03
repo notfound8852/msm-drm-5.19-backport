@@ -1,0 +1,11 @@
+#include "sdm845-oneplus-common.dtsi"
+
+&display_panel {
+	status = "okay";
+	compatible = "samsung,s6e3fc2x01";
+};
+/*
+&framebuffer {
+	height = <2340>;
+};
+*/
