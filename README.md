@@ -13,7 +13,7 @@ This driver is going to a part of **Andrunix** (my main project), and it's going
 1.  **Standard Android Boot:** Uses the vendor kernel with KGSL/SDE for regular Android functionality.
 2.  **Linux Desktop Boot:** Uses a modified Device Tree (DTB) where vendor KGSL and SDE nodes are stripped and replaced with mainline-aligned MDSS/Adreno nodes, backed by this **msm-drm-5.19** driver.
 
-**NOTE:** This approach might eventually be changed to do a swap while being booted into Android(I have patched SDE's uninit flow-just haven't gotten around to releasing it, yet.)
+**NOTE:** This approach might eventually be changed to do a live swap while being booted into Android(I have patched SDE's uninit flow-just haven't gotten around to releasing it, yet.)
 
 But for now this approach avoids the extreme complexity of live SDE ↔ MSM driver switching, which is notoriously prone to unfixable teardown race conditions in downstream kernels.
 
