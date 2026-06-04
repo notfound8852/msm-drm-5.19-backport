@@ -22,13 +22,14 @@
 struct sofef00_panel {
 	struct drm_panel panel;
 	struct mipi_dsi_device *dsi;
-	struct regulator *supply;
+	struct regulator_bulk_data supplies[3];
 	struct gpio_desc *reset_gpio;
 	const struct drm_display_mode *mode;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 8, 0)
 	struct backlight_device *backlight;
 #endif
 	bool prepared;
+	bool first_prepare;
 };
 
 static inline
@@ -36,6 +37,17 @@ struct sofef00_panel *to_sofef00_panel(struct drm_panel *panel)
 {
 	return container_of(panel, struct sofef00_panel, panel);
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(6, 1, 0)
+int mipi_dsi_dcs_set_display_brightness_large(struct mipi_dsi_device *dsi,
+						   u16 brightness)
+{
+	u8 payload[3] = { MIPI_DCS_SET_DISPLAY_BRIGHTNESS, brightness >> 8,
+			  brightness & 0xff };
+
+	return mipi_dsi_dcs_write_buffer(dsi, payload, sizeof(payload));
+}
+#endif
 
 #define dsi_dcs_write_seq(dsi, seq...) do {				\
 		static const u8 d[] = { seq };				\
@@ -129,9 +141,21 @@ static int sofef00_panel_prepare(struct drm_panel *panel)
 	if (ctx->prepared)
 		return 0;
 
-	ret = regulator_enable(ctx->supply);
+	/*
+	 * On boot the panel has already been initialised, if the regulators are
+	 * already enabled then we can safely assume that the panel is on and we
+	 * can skip the prepare.
+	 */
+	if (regulator_is_enabled(ctx->supplies[0].consumer) && ctx->first_prepare) {
+		ctx->first_prepare = false;
+		ctx->prepared = true;
+		dev_dbg(dev, "First prepare!\n");
+		return 0;
+	}
+
+	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
-		dev_err(dev, "Failed to enable regulator: %d\n", ret);
+		dev_err(dev, "Failed to enable regulators: %d\n", ret);
 		return ret;
 	}
 
@@ -141,6 +165,7 @@ static int sofef00_panel_prepare(struct drm_panel *panel)
 	if (ret < 0) {
 		dev_err(dev, "Failed to initialize panel: %d\n", ret);
 		gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+		regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 		return ret;
 	}
 
@@ -174,7 +199,8 @@ static int sofef00_panel_unprepare(struct drm_panel *panel)
 	if (ret < 0)
 		dev_err(dev, "Failed to un-initialize panel: %d\n", ret);
 
-	regulator_disable(ctx->supply);
+	gpiod_set_value_cansleep(ctx->reset_gpio, 1);
+	regulator_bulk_disable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 
 	ctx->prepared = false;
 	return 0;
@@ -194,19 +220,6 @@ static const struct drm_display_mode enchilada_panel_mode = {
 	.height_mm = 145,
 };
 
-static const struct drm_display_mode fajita_panel_mode = {
-	.clock = (1080 + 72 + 16 + 36) * (2340 + 32 + 4 + 18) * 60 / 1000,
-	.hdisplay = 1080,
-	.hsync_start = 1080 + 72,
-	.hsync_end = 1080 + 72 + 16,
-	.htotal = 1080 + 72 + 16 + 36,
-	.vdisplay = 2340,
-	.vsync_start = 2340 + 32,
-	.vsync_end = 2340 + 32 + 4,
-	.vtotal = 2340 + 32 + 4 + 18,
-	.width_mm = 68,
-	.height_mm = 145,
-};
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 static int sofef00_panel_get_modes(struct drm_panel *panel, struct drm_connector *connector)
 #else
@@ -273,10 +286,8 @@ static int sofef00_panel_bl_update_status(struct backlight_device *bl)
 	u16 brightness;
 
 	brightness = (u16)backlight_get_brightness(bl);
-	// This panel needs the high and low bytes swapped for the brightness value
-	brightness = __swab16(brightness);
 
-	err = mipi_dsi_dcs_set_display_brightness(dsi, brightness);
+	err = mipi_dsi_dcs_set_display_brightness_large(dsi, brightness);
 	if (err < 0)
 		return err;
 
@@ -318,12 +329,25 @@ static int sofef00_panel_probe(struct mipi_dsi_device *dsi)
 		return -ENODEV;
 	}
 
-	ctx->supply = devm_regulator_get(dev, "vddio");
-	if (IS_ERR(ctx->supply))
-		return dev_err_probe(dev, PTR_ERR(ctx->supply),
-				     "Failed to get vddio regulator\n");
+	ctx->supplies[0].supply = "vddio";
+	ctx->supplies[1].supply = "vci";
+	ctx->supplies[2].supply = "poc";
 
-	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_HIGH);
+	ret = devm_regulator_bulk_get(dev, ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "Failed to get regulators\n");
+
+	/* Regulators are all boot-on, enable them to balance the refcounts so we can disable
+	 * them later in the first prepare() call */
+	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
+	if (ret < 0)
+		return dev_err_probe(dev, ret,
+				     "Failed to enable regulators\n");
+
+	ctx->first_prepare = true;
+
+	ctx->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(ctx->reset_gpio),
 				     "Failed to get reset-gpios\n");
@@ -341,6 +365,11 @@ static int sofef00_panel_probe(struct mipi_dsi_device *dsi)
 	ctx->panel.dev = dev;
 	ctx->panel.funcs = &sofef00_panel_panel_funcs;
 #endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+	ctx->panel.prepare_prev_first = true;
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
 	ctx->panel.backlight = sofef00_create_backlight(dsi);
 	if (IS_ERR(ctx->panel.backlight))
@@ -386,10 +415,6 @@ static const struct of_device_id sofef00_panel_of_match[] = {
 		.compatible = "samsung,sofef00",
 		.data = &enchilada_panel_mode,
 	},
-	{ // OnePlus 6T / fajita
-		.compatible = "samsung,s6e3fc2x01",
-		.data = &fajita_panel_mode,
-	},
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, sofef00_panel_of_match);
@@ -406,5 +431,5 @@ static struct mipi_dsi_driver sofef00_panel_driver = {
 module_mipi_dsi_driver(sofef00_panel_driver);
 
 MODULE_AUTHOR("Caleb Connolly <caleb@connolly.tech>");
-MODULE_DESCRIPTION("DRM driver for Samsung AMOLED DSI panels found in OnePlus 6/6T phones");
+MODULE_DESCRIPTION("DRM driver for Samsung AMOLED DSI panels found in OnePlus 6 phones");
 MODULE_LICENSE("GPL v2");
