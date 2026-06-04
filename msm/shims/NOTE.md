@@ -168,6 +168,7 @@ As of right now, I don't know what this is, let alone what it could mean.
 * In `disp/dpu_kms.c` function `dpu_runtime_suspend` added checks for `performance state vote`
 
 ## Current Logs:
+
 ```sh
 [  326.944307] panel_samsung_sofef00: loading out-of-tree module taints kernel.
 [  326.952245] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
