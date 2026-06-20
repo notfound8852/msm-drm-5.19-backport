@@ -141,25 +141,30 @@ static int sofef00_panel_prepare(struct drm_panel *panel)
 	if (ctx->prepared)
 		return 0;
 
-	/*
-	 * On boot the panel has already been initialised, if the regulators are
-	 * already enabled then we can safely assume that the panel is on and we
-	 * can skip the prepare.
-	 */
-	if (regulator_is_enabled(ctx->supplies[0].consumer) && ctx->first_prepare) {
-		ctx->first_prepare = false;
-		ctx->prepared = true;
-		dev_dbg(dev, "First prepare!\n");
-		return 0;
-	}
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0)
+    /*
+     * On newer kernels with proper panel handoff we can skip reinit
+     * if regulators are already up from the bootloader. On 4.19 the
+     * SMMU remap kills cont-splash anyway so always do full init.
+     */
+    if (regulator_is_enabled(ctx->supplies[0].consumer) && ctx->first_prepare) {
+        ctx->first_prepare = false;
+        ctx->prepared = true;
+        dev_dbg(dev, "First prepare!\n");
+        return 0;
+    }
+#endif
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
 		return ret;
 	}
+	usleep_range(5000, 6000);
 
 	sofef00_panel_reset(ctx);
+
+	usleep_range(5000, 6000);
 
 	ret = sofef00_panel_on(ctx);
 	if (ret < 0) {
