@@ -69,4 +69,4 @@ This backport includes several targeted fixes to address downstream-specific beh
 3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
 
 ## 📄 Technical Documentation
-See [msm/shims/NOTE.md](msm/shims/NOTE.md) for a deep dive into specific implementation hacks, SMMU fault analysis, and comparison with 5.4/4.19 MSM drivers.
+See [msm/shims/NOTE.md](msm/shims/NOTE.md) for a deep dive into specific implementation hacks, SMMU fault analysis, and comparison with 4.19/5.4/5.18 MSM drivers along with how to get genpd power-domains to work.

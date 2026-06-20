@@ -4,9 +4,86 @@
 * drm_plane_enable_fb_damage_clips full dropped
 * drm_syncobj_add_point was literally replaced with drm_syncobj_replace_fence-Unique Vulkan API's will absolutely explode. (I'll think of something else. 🙃)
 * drm_sched_job_cleanup-4.19 doesn't need it.
-
 - dpu_crtc_get_scanout_position UNHANDLED!
 - dpu_crtc_get_vblank_counter UNHANDLED!
+* `genpd` power-domains (MDSS_GDSC, GPU_GX_GDSC, GPU_CX_GDSC)
+
+## Quick how to:
+
+In `drivers/clk/qcom/gpucc-sdm845.c`:
+
+```c
+#include "gdsc.h"
+
+static struct gdsc gpu_gx_gdsc = {
+	.gdscr = 0x100c,
+	.clamp_io_ctrl = 0x1508,
+	.pd = {
+		.name = "gpu_gx_gdsc",
+		.power_on = gdsc_gx_do_nothing_enable,
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = CLAMP_IO | AON_RESET | POLL_CFG_GDSCR,
+};
+
+static struct gdsc gpu_cx_gdsc = {
+	.gdscr = 0x106c,
+	.gds_hw_ctrl = 0x1540,
+	.pd = {
+		.name = "gpu_cx_gdsc",
+	},
+	.pwrsts = PWRSTS_OFF_ON,
+	.flags = VOTABLE,
+};
+
+static struct gdsc *gpu_cc_sdm845_gdscs[] = {
+	[GPU_CX_GDSC] = &gpu_cx_gdsc,
+	[GPU_GX_GDSC] = &gpu_gx_gdsc,
+};
+
+static const struct qcom_cc_desc gpu_cc_sdm845_desc = {
+    .config = &gpu_cc_sdm845_regmap_config,
+    .clks = gpu_cc_sdm845_clocks,
+    .num_clks = ARRAY_SIZE(gpu_cc_sdm845_clocks),
+    .resets = gpu_cc_sdm845_resets,
+    .num_resets = ARRAY_SIZE(gpu_cc_sdm845_resets),
+	// Add these:
+    .gdscs = gpu_cc_sdm845_gdscs,
+    .num_gdscs = ARRAY_SIZE(gpu_cc_sdm845_gdscs),
+};
+```
+Then in `drivers/clk/qcom/dispcc-sdm845.c`:
+
+```c
+#include "gdsc.h"
+
+static struct gdsc mdss_gdsc = {
+    .gdscr = 0x3000,
+    .en_few_wait_val = 0x6,
+    .en_rest_wait_val = 0x5,
+    .pd = {
+        .name = "mdss_gdsc",
+    },
+    .pwrsts = PWRSTS_OFF_ON,
+    .flags = HW_CTRL | POLL_CFG_GDSCR,
+};
+
+static struct gdsc *disp_cc_sdm845_gdscs[] = {
+    [MDSS_GDSC] = &mdss_gdsc,
+};
+
+static const struct qcom_cc_desc disp_cc_sdm845_desc = {
+    .config = &disp_cc_sdm845_regmap_config,
+    .clks = disp_cc_sdm845_clocks,
+    .num_clks = ARRAY_SIZE(disp_cc_sdm845_clocks),
+    .resets = disp_cc_sdm845_resets,
+    .num_resets = ARRAY_SIZE(disp_cc_sdm845_resets),
+    // Add these:
+    .gdscs = disp_cc_sdm845_gdscs,
+    .num_gdscs = ARRAY_SIZE(disp_cc_sdm845_gdscs),
+};
+
+```
 
 * INTERCONNECTOR SHIM usage:
 ```
