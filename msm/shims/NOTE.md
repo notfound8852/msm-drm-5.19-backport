@@ -10,7 +10,7 @@
 
 ## Quick how to:
 
-In `drivers/clk/qcom/gpucc-sdm845.c`:
+In `drivers/clk/qcom/gpucc-sdm845.c` add these:
 
 ```c
 #include "gdsc.h"
@@ -52,7 +52,7 @@ static const struct qcom_cc_desc gpu_cc_sdm845_desc = {
     .num_gdscs = ARRAY_SIZE(gpu_cc_sdm845_gdscs),
 };
 ```
-Then in `drivers/clk/qcom/dispcc-sdm845.c`:
+Then in `drivers/clk/qcom/dispcc-sdm845.c` add these:
 
 ```c
 #include "gdsc.h"
