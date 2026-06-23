@@ -487,14 +487,13 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 		pr_err("%s: dev_pm_opp_set_rate failed %d\n", __func__, ret);
 		return ret;
 	}
-
 #else
-    /* Don't do anything fancy. Just set the clock rate directly. */
-    ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
-    if (ret) {
-        pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
-        return ret;
-    }
+	/* Don't do anything fancy. Just set the clock rate directly. */
+	ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+	if (ret) {
+		pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
+		return ret;
+	}
 #endif
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->pixel_clk_rate);
