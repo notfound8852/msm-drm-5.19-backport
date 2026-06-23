@@ -471,80 +471,31 @@ int msm_dsi_runtime_resume(struct device *dev)
 
 	return clk_bulk_prepare_enable(msm_host->num_bus_clks, msm_host->bus_clks);
 }
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
 
-/*
- * Downstream dev_pm_opp_set_rate() does a good job in setting the
- * rounded rates but disp_cc_mdss_pclk0_clk_src is not able to get
- * the parent's rounded rate.
- *
- * FIX: SDE handles "byte_clk_rate" and "pixel_clk_rate" explicitly
- * by hardcoding them to run at the same rate. And turns out even
- * on upstream they rarely run asynchronously so, we will have handle
- * them here in a dynamic way similar to how dev_pm_opp_set_rate()
- * would.
- */
-static inline int msm_dsi_clamp_to_opp(struct msm_dsi_host *msm_host)
-{
-
-	struct dev_pm_opp *opp;
-	unsigned long freq;
-	long rounded;
-
-	if (msm_host->byte_clk) {
-		rounded = clk_round_rate(msm_host->byte_clk,
-					 msm_host->byte_clk_rate);
-
-		if (rounded > 0)
-			freq = rounded;
-		else
-			freq = msm_host->byte_clk_rate;
-	} else {
-		freq = msm_host->byte_clk_rate;
-	}
-
-	opp = dev_pm_opp_find_freq_ceil(&msm_host->pdev->dev, &freq);
-	if (IS_ERR(opp)) {
-		pr_err("%s: no suitable OPP found for %lu Hz\n",
-		       __func__, msm_host->byte_clk_rate);
-		return PTR_ERR(opp);
-	}
-
-	dev_pm_opp_put(opp);
-
-	if (freq != msm_host->byte_clk_rate) {
-		pr_info("%s: clamping byte clock from %lu to %lu\n",
-			__func__,
-			msm_host->byte_clk_rate,
-			freq);
-
-		msm_host->byte_clk_rate = freq;
-		msm_host->pixel_clk_rate = freq;
-	}
-
-	return 0;
-}
-#endif
 int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 {
 	unsigned long byte_intf_rate;
 	int ret;
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
-	ret = msm_dsi_clamp_to_opp(msm_host);
-	if (ret)
-		return ret;
-#endif
-
 	DBG("Set clk rates: pclk=%d, byteclk=%lu",
 		msm_host->mode->clock, msm_host->byte_clk_rate);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 	ret = dev_pm_opp_set_rate(&msm_host->pdev->dev,
 				  msm_host->byte_clk_rate);
 	if (ret) {
 		pr_err("%s: dev_pm_opp_set_rate failed %d\n", __func__, ret);
 		return ret;
 	}
+
+#else
+    /* Don't do anything fancy. Just set the clock rate directly. */
+    ret = clk_set_rate(msm_host->byte_clk, msm_host->byte_clk_rate);
+    if (ret) {
+        pr_err("%s: Failed to set rate byte clk, %d\n", __func__, ret);
+        return ret;
+    }
+#endif
 
 	ret = clk_set_rate(msm_host->pixel_clk, msm_host->pixel_clk_rate);
 	if (ret) {
