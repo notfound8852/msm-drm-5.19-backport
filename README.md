@@ -1,4 +1,4 @@
-# MSM DRM/KMS 5.19 Backport for Downstream 4.19 Kernels
+# MSM DRM/KMS 5.19 Backport for Downstream Kernels
 
 This project provides a comprehensive backport of the **Qualcomm MSM DRM/KMS driver from Linux 5.19** to the **Downstream kernel bases**. 
 
@@ -38,6 +38,7 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **DSI PHY & Host:** Full support for 10nm DSI PHYs with mainline-style link/pixel clock management.
 *   **OPP-Based Timings:** Implements `msm_dsi_clamp_to_opp` to ensure pixel clocks are correctly clamped to valid OPP ranges, preventing RCG misbehavior common in downstream kernels.
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
+*	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
 
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
@@ -53,11 +54,11 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional, but it is currently broken for downstream (panel times out at least for me. 🙃)
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional meaning the panel lights up EXCEPT for the GPU/GMU pipeline.
 
 *   **Probing:** Driver probes and initializes fully.
-*   **Display:** `modetest` works (as long as gmu_resume is never touched). Early framebuffer hand-off works.
-*   **IOMMU:** Translation and context bank allocation seem stable.
+*   **Display:** `modetest` works (as long as gmu_resume is never touched). Early framebuffer hand-off works and the panel does infact light up.
+*   **IOMMU:** Translation and context bank allocation are stable.
 *   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
 
 ## 🛠️ Integration

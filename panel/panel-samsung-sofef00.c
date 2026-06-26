@@ -103,7 +103,6 @@ static int sofef00_panel_on(struct sofef00_panel *ctx)
 		dev_err(dev, "Failed to set display on: %d\n", ret);
 		return ret;
 	}
-
 	return 0;
 }
 
@@ -136,7 +135,7 @@ static int sofef00_panel_prepare(struct drm_panel *panel)
 {
 	struct sofef00_panel *ctx = to_sofef00_panel(panel);
 	struct device *dev = &ctx->dsi->dev;
-	int ret;
+	int ret, i;
 
 	if (ctx->prepared)
 		return 0;
@@ -155,16 +154,20 @@ static int sofef00_panel_prepare(struct drm_panel *panel)
     }
 #endif
 
+	/*
+	 * Force rails into High Power Mode for transmission. On 4.19 downstream
+	 * RPMh, a load request >= 100000uA maps to HPM.
+	 */
+	for (i = 0; i < ARRAY_SIZE(ctx->supplies); i++)
+		regulator_set_load(ctx->supplies[i].consumer, 100000);
+
 	ret = regulator_bulk_enable(ARRAY_SIZE(ctx->supplies), ctx->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators: %d\n", ret);
 		return ret;
 	}
-	usleep_range(5000, 6000);
 
 	sofef00_panel_reset(ctx);
-
-	usleep_range(5000, 6000);
 
 	ret = sofef00_panel_on(ctx);
 	if (ret < 0) {
@@ -436,5 +439,5 @@ static struct mipi_dsi_driver sofef00_panel_driver = {
 module_mipi_dsi_driver(sofef00_panel_driver);
 
 MODULE_AUTHOR("Caleb Connolly <caleb@connolly.tech>");
-MODULE_DESCRIPTION("DRM driver for Samsung AMOLED DSI panels found in OnePlus 6 phones");
+MODULE_DESCRIPTION("DRM driver for Samsung AMOLED DSI panels found in OnePlus 6/6T phones");
 MODULE_LICENSE("GPL v2");
