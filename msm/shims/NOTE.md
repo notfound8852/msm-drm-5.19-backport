@@ -200,9 +200,7 @@ As of right now, I don't know what this is, let alone what it could mean.
 	- What happens if we stub that line out and force KGSL to probe?
 
 * **MDSS/DPU pipline:** Seems to be working, modetest prints fine as long as we skip `gmu_resume`
-    - Panel init timeout.
-* **FIXES:**
-    - Haven't looked into it, yet...
+    - Panel lights up!
 
 ## FIXES/added funcs to MSM:
 
@@ -216,9 +214,6 @@ As of right now, I don't know what this is, let alone what it could mean.
 
 **Aperture remove conflicing framebuffers:**
 * In msm_fbdev.c function name `static inline int msm_aperture_remove_framebuffers()`
-
-**pixel_clk_src timings:**
-* In `dsi/dsi_host.c` function name `static inline int msm_dsi_clamp_to_opp(struct msm_dsi_host *msm_host)`
 
 **SMMU; NULL TTBR0 and TTBR1 Context faults**
 ```
@@ -244,52 +239,44 @@ As of right now, I don't know what this is, let alone what it could mean.
 * In `dsi/dsi_host.c` function `dsi_link_clk_disable_6g` added checks for `performance state vote`
 * In `disp/dpu_kms.c` function `dpu_runtime_suspend` added checks for `performance state vote`
 
+**pixel_clk_src timings:**
+* In `dsi/dsi_host.c` dsi_link_clk_set_rate_6g. We avoid `dev_pm_opp_set_rate()` for `clk_set_rate()` downstream's sakes.
+
+**Panel timeout issue specific to ONLY len 8 bytes:**
+* In `dsi/dsi_host.c` search for function `static int msm_dsi_create_packet` it acts as a replacement for mipi_dsi_create_packet() since android CAF's are weird.
+
 ## Current Logs:
 
 ```sh
-[  326.944307] panel_samsung_sofef00: loading out-of-tree module taints kernel.
-[  326.952245] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
-[  327.530366] adreno 0.gpu: Linked as a consumer to 5040000.iommu
-[  327.538768] iommu: Adding device 0.gpu to group 38
-[  327.548204] msm-mdss ae00000.mdss: Linked as a consumer to 15000000.apps-smmu
-[  327.556453] iommu: Adding device ae00000.mdss to group 39
-[  327.576821] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
-[  327.588412] msm_dsi ae94000.dsi: [drm:dsi_dev_probe [msm]] *ERROR* dsi_get_phy: phy driver is not ready
-[  327.603901] msm_dsi ae94000.dsi: Dropping the link to regulator.37
-[  327.628500] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
-[  327.684936] msm_dsi_phy ae94400.dsi-phy: Linked as a consumer to regulator.0
-[  327.685597] msm_dsi ae94000.dsi: [drm:dsi_dev_probe [msm]] *ERROR* dsi_get_phy: phy driver is not ready
-[  327.701777] msm_dsi ae94000.dsi: Dropping the link to regulator.37
-[  327.755207] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
-[  327.764585] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.25
-[  327.773412] msm_dpu ae01000.mdp: bound ae94000.dsi (ops dsi_ops [msm])
-[  327.782776] adreno 0.gpu: 0.gpu supply vdd not found, using dummy regulator
-[  327.791286] adreno 0.gpu: Linked as a consumer to regulator.0
-[  327.799732] adreno 0.gpu: 0.gpu supply vddcx not found, using dummy regulator
-[  327.808186] Frequency QoS not supported on: 4.19.255...
-[  327.817639] platform 0.gmu: Linked as a consumer to 5040000.iommu
-[  327.826452] iommu: Adding device 0.gmu to group 40
-[  327.835959] platform 0.gmu: Linked as a consumer to genpd:0:0.gmu
-[  327.844777] msm_dpu ae01000.mdp: bound 0.gpu (ops a3xx_ops [msm])
-[  327.855009] [drm:dpu_kms_hw_init:1132] dpu hardware revision:0x40000000
-[  327.864343] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
-[  327.872852] [drm] No driver support for vblank timestamp query.
-[  327.881349] [drm] Setting vblank_disable_immediate to false because get_vblank_timestamp == NULL
-[  327.891058] [drm] Initialized msm 1.9.0 20130625 for ae01000.mdp on minor 0
-[  327.900811] msmdrm: Evicting conflicting fb at 0x000000009d400000 (size: 36864 KB)
-[  327.909360] checking generic (9d400000 2400000) vs hw (9d400000 2400000)
-[  327.909365] fb: switching to msmdrmfb from simple
-[  327.917990] Console: switching to colour dummy device 80x25
-[  327.928583] msm_dsi_clamp_to_opp: clamping byte clock from 130769250 to 180000000
-[  328.184075] dsi_cmds2buf_tx: cmd dma tx failed, type=0x39, data0=0xf0, len=8, ret=-110
-[  328.184091] panel-oneplus6 ae94000.dsi.0: Failed to initialize panel: -110
-[  328.184099] dsi_mgr_bridge_pre_enable: prepare panel 0 failed, -110
-[  328.184260] Console: switching to colour frame buffer device 135x142
-[  328.312064] [drm:dpu_encoder_frame_done_timeout:2325] [dpu error]enc28 frame done timeout
-[  328.396148] [drm:_dpu_encoder_phys_cmd_handle_ppdone_timeout [msm]] *ERROR* id:28 pp:0 kickoff timeout 2 cnt 1 koff_cnt 1
-[  328.396268] [drm:dpu_encoder_phys_cmd_wait_for_commit_done [msm]] *ERROR* failed wait_for_idle: id:28 ret:-110 intf:1
-[  328.396272] [drm:dpu_kms_wait_for_commit_done:539] [dpu error]wait for commit done returned -110
-[  328.403830] msm_dpu ae01000.mdp: fb0: msmdrmfb frame buffer device
-[  329.492086] [drm:_dpu_encoder_phys_cmd_wait_for_ctl_start:660] [dpu error]enc28 intf1 ctl start interrupt wait failed
-[  329.492153] [drm:dpu_kms_wait_for_commit_done:539] [dpu error]wait for commit done returned -22
+[   29.087615] panel_samsung_sofef00: loading out-of-tree module taints kernel.
+[   29.096408] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
+[   31.067232] adreno 0.gpu: Linked as a consumer to 5040000.iommu
+[   31.076342] iommu: Adding device 0.gpu to group 38
+[   31.086819] msm-mdss ae00000.mdss: Linked as a consumer to 15000000.apps-smmu
+[   31.095842] iommu: Adding device ae00000.mdss to group 39
+[   31.194880] msm_dsi_phy ae94400.dsi-phy: Linked as a consumer to regulator.10
+[   31.205643] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
+[   31.215129] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.25
+[   31.223765] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.75
+[   31.232230] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.76
+[   31.241479] msm_dpu ae01000.mdp: bound ae94000.dsi (ops dsi_ops [msm])
+[   31.250836] adreno 0.gpu: 0.gpu supply vdd not found, using dummy regulator
+[   31.259238] adreno 0.gpu: Linked as a consumer to regulator.0
+[   31.267594] adreno 0.gpu: 0.gpu supply vddcx not found, using dummy regulator
+[   31.276000] Frequency QoS not supported on: 4.19.255...
+[   31.285520] platform 0.gmu: Linked as a consumer to 5040000.iommu
+[   31.294362] iommu: Adding device 0.gmu to group 40
+[   31.311890] platform 0.gmu: Linked as a consumer to genpd:0:0.gmu
+[   31.328109] msm_dpu ae01000.mdp: bound 0.gpu (ops a3xx_ops [msm])
+[   31.345715] [drm:dpu_kms_hw_init:1132] dpu hardware revision:0x40000000
+[   31.362135] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[   31.370457] [drm] No driver support for vblank timestamp query.
+[   31.378737] [drm] Setting vblank_disable_immediate to false because get_vblank_timestamp == NULL
+[   31.388191] [drm] Initialized msm 1.9.0 20130625 for ae01000.mdp on minor 0
+[   31.396556] msmdrm: Evicting conflicting fb at 0x000000009d400000 (size: 36864 KB)
+[   31.404794] checking generic (9d400000 2400000) vs hw (9d400000 2400000)
+[   31.404800] fb: switching to msmdrmfb from simple
+[   31.413140] Console: switching to colour dummy device 80x25
+[   31.483130] Console: switching to colour frame buffer device 135x142
+[   31.509662] msm_dpu ae01000.mdp: fb0: msmdrmfb frame buffer device
 ```

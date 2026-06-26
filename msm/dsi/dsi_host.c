@@ -516,10 +516,8 @@ int dsi_link_clk_set_rate_6g(struct msm_dsi_host *msm_host)
 			return ret;
 		}
 	}
-
 	return 0;
 }
-
 
 int dsi_link_clk_enable_6g(struct msm_dsi_host *msm_host)
 {
@@ -1256,6 +1254,51 @@ void dsi_tx_buf_put_6g(struct msm_dsi_host *msm_host)
 }
 
 /*
+ * Android CAF tree's core mipi_dsi_create_packet() (drivers/gpu/drm/drm_mipi_dsi.c)
+ * are usually modified to emit the DSI packet header in REVERSED byte order
+ * (header[2] = data id, header[0..1] = word count) versus mainline
+ * (header[0] = data id, header[1..2] = word count). dsi_cmd_dma_add() below is
+ * the upstream 5.19 version and depends on mainline ordering, so calling the
+ * core helper scrambles the MSM command DWORD -- short writes still latch (the
+ * engine ignores the WC field for fixed-length packets) but long writes get a
+ * garbage word count (e.g. 0x3900) and the cmd-DMA engine hangs forever waiting
+ * for a packet that never completes (STATUS0 stuck at CMD_DMA_BUSY, -ETIMEDOUT).
+ */
+static int msm_dsi_create_packet(struct mipi_dsi_packet *packet,
+				 const struct mipi_dsi_msg *msg)
+{
+	if (!packet || !msg)
+		return -EINVAL;
+
+	if (!mipi_dsi_packet_format_is_short(msg->type) &&
+	    !mipi_dsi_packet_format_is_long(msg->type))
+		return -EINVAL;
+
+	if (msg->channel > 3)
+		return -EINVAL;
+
+	memset(packet, 0, sizeof(*packet));
+	packet->header[0] = ((msg->channel & 0x3) << 6) | (msg->type & 0x3f);
+
+	if (mipi_dsi_packet_format_is_long(msg->type)) {
+		packet->header[1] = (msg->tx_len >> 0) & 0xff;
+		packet->header[2] = (msg->tx_len >> 8) & 0xff;
+
+		packet->payload_length = msg->tx_len;
+		packet->payload = msg->tx_buf;
+	} else {
+		const u8 *tx = msg->tx_buf;
+
+		packet->header[1] = (msg->tx_len > 0) ? tx[0] : 0;
+		packet->header[2] = (msg->tx_len > 1) ? tx[1] : 0;
+	}
+
+	packet->size = sizeof(packet->header) + packet->payload_length;
+
+	return 0;
+}
+
+/*
  * prepare cmd buffer to be txed
  */
 static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
@@ -1267,7 +1310,12 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	int ret;
 	u8 *data;
 
+	ret = msm_dsi_create_packet(&packet, msg);
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(0, 0, 0)
+	/* I will omit using this all together just to avoid any nonsense with Android CAFs */
 	ret = mipi_dsi_create_packet(&packet, msg);
+#endif
 	if (ret) {
 		pr_err("%s: create packet failed, %d\n", __func__, ret);
 		return ret;
@@ -1351,7 +1399,6 @@ static int dsi_long_read_resp(u8 *buf, const struct mipi_dsi_msg *msg)
 
 	return msg->rx_len;
 }
-
 int dsi_dma_base_get_6g(struct msm_dsi_host *msm_host, uint64_t *dma_base)
 {
 	struct drm_device *dev = msm_host->dev;
@@ -2214,6 +2261,7 @@ int msm_dsi_host_modeset_init(struct mipi_dsi_host *host,
 		}
 	}
 #endif
+
 	ret = cfg_hnd->ops->tx_buf_alloc(msm_host, SZ_4K);
 	if (ret) {
 		pr_err("%s: alloc tx gem obj failed, %d\n", __func__, ret);
@@ -2583,7 +2631,7 @@ int msm_dsi_host_power_on(struct mipi_dsi_host *host,
 {
 	struct msm_dsi_host *msm_host = to_msm_dsi_host(host);
 	const struct msm_dsi_cfg_handler *cfg_hnd = msm_host->cfg_hnd;
-	int ret = 0;
+	int ret = 0, i;
 
 	mutex_lock(&msm_host->dev_mutex);
 	if (msm_host->power_on) {
