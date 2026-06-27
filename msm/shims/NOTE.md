@@ -248,6 +248,8 @@ But most importantly, the panel lights up!
 
 ### GPU/GMU bring-up pipeline:
 ```sh
+[   47.021251] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_sqe.fw from new location
+[   47.021913] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_gmu.bin from new location
 [   48.032121] [drm:adreno_idle [msm]] *ERROR* A630: timeout waiting to drain ringbuffer 0 rptr/wptr = C/11
 [   48.032340] adreno 5000000.gpu: [drm:a6xx_irq [msm]] *ERROR* gpu fault ring 0 fence 0 status 00800005 rb 0011/0011 ib1 0000000000000000/0000 ib2 0000000000000000/0000
 [   48.032429] msm_dpu ae01000.mdp: [drm:adreno_load_gpu [msm]] *ERROR* gpu hw init failed: -22

@@ -639,4 +639,3 @@ DISABLE_NODE(dsi_panel_pwr_supply_vdd_no_labibb);
 DISABLE_NODE(sde_dsi);
 DISABLE_NODE(sde_wb);
 DISABLE_NODE(ext_disp);
-
