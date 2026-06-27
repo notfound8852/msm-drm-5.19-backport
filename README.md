@@ -39,9 +39,11 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **OPP-Based Timings:** Implements `msm_dsi_clamp_to_opp` to ensure pixel clocks are correctly clamped to valid OPP ranges, preventing RCG misbehavior common in downstream kernels.
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 *	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
+
 ### ⚠️ Critical insight:
 This one is a very specific Android quirk.
 On the Snapdragon 845 platform, **all DSI command execution utilizes the Command-DMA engine**, regardless of whether the payload is a short 4-byte or a long 8-byte write.
+
 #### Quick Explanation:
 * **Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
 
@@ -65,6 +67,7 @@ It's really understanding the problem because the fix is trivial. All it takes i
 
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
+*	**GMU Register Access:** Resolved initial crashes during `gmu_resume` (gmu_read/gmu_write are now functional).
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -102,7 +105,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 ---
 
 *   **IOMMU:** Translation and context bank allocation are stable.
-*   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
+*	**GPU:** GMU register access and `gmu_resume` are functional. However, a ringbuffer drain timeout occurs during GPU hardware initialization (`adreno_load_gpu` failing with `-22`), leading to a Command Processor (CP) opcode error (`possible opcode=0x70E60001`) and a subsequent kernel NULL pointer dereference panic during hangcheck recovery.
 
 ## 🛠️ Integration
 
