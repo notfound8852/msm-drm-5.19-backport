@@ -1202,9 +1202,20 @@ static int a6xx_gmu_memory_probe(struct a6xx_gmu *gmu)
 	struct iommu_domain *domain;
 	struct msm_mmu *mmu;
 
-	domain = iommu_domain_alloc(&platform_bus_type);
-	if (!domain)
-		return -ENODEV;
+	/*
+	 * Downstream Qualcomm kernels associate an IOMMU domain with the GMU
+	 * device during SMMU init based on its DT iommus= binding. Reuse that
+	 * live domain instead of allocating a second one whose pagetable never
+	 * gets programmed into the active context bank -- that leaves TTBR0 NULL
+	 * and the GMU's firmware fetch at iova 0x6000_0000 takes a translation
+	 * fault. Mirrors the _dpu_kms_mmu_init() fix on the MDSS side.
+	 */
+	domain = iommu_get_domain_for_dev(gmu->dev);
+	if (!domain) {
+		domain = iommu_domain_alloc(&platform_bus_type);
+		if (!domain)
+			return -ENODEV;
+	}
 
 	mmu = msm_iommu_new(gmu->dev, domain);
 	gmu->aspace = msm_gem_address_space_create(mmu, "gmu", 0x0, 0x80000000);

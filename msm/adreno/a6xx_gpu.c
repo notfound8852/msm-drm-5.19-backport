@@ -1692,9 +1692,18 @@ a6xx_create_address_space(struct msm_gpu *gpu, struct platform_device *pdev)
 	struct msm_gem_address_space *aspace;
 	u64 start, size;
 
-	iommu = iommu_domain_alloc(&platform_bus_type);
-	if (!iommu)
-		return NULL;
+	/*
+	 * Reuse the live IOMMU domain the downstream SMMU already attached to the
+	 * GPU device (via its DT iommus= binding) rather than allocating a second,
+	 * unattached domain -- otherwise the active context bank keeps a NULL
+	 * TTBR0 and GPU accesses fault. Same fix as the GMU/MDSS paths.
+	 */
+	iommu = iommu_get_domain_for_dev(&pdev->dev);
+	if (!iommu) {
+		iommu = iommu_domain_alloc(&platform_bus_type);
+		if (!iommu)
+			return NULL;
+	}
 
 	/*
 	 * This allows GPU to set the bus attributes required to use system

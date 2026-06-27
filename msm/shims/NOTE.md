@@ -198,6 +198,7 @@ But most importantly, the panel lights up!
 ```
 * In `disp/dpu_kms.c` function `_dpu_kms_mmu_init`.
 	- Domain is handled differently for downstream. A fix has been set up so if `iommu_get_domain_for_dev` fails you immediately get the upstream fallback.
+	- Similiar changes to a6xx_gmu.c, a6xx_gpu.c. Search for `iommu_get_domain_for_dev`-you'll see it.
 
 **performance state votes specifically for 0:**
 * In `dsi/dsi_host.c` function `dsi_link_clk_disable_6g` added checks for `performance state vote`
