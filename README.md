@@ -39,9 +39,11 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **OPP-Based Timings:** Implements `msm_dsi_clamp_to_opp` to ensure pixel clocks are correctly clamped to valid OPP ranges, preventing RCG misbehavior common in downstream kernels.
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 *	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
+
 ### ⚠️ Critical insight:
 This one is a very specific Android quirk.
 On the Snapdragon 845 platform, **all DSI command execution utilizes the Command-DMA engine**, regardless of whether the payload is a short 4-byte or a long 8-byte write.
+
 #### Quick Explanation:
 * **Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
 
