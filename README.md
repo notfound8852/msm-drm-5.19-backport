@@ -59,19 +59,25 @@ This backport includes several targeted fixes to address downstream-specific beh
 *   **Probing:** Driver probes and initializes fully.
 *   **Display:** `modetest` works (as long as gmu_resume is never touched). Early framebuffer hand-off works and the panel does infact light up.
 
-<table align="center" width="100%">
-  <tr>
-    <td align="center" width="50%">
-      <img src="assets/panel_light_up.jpg" alt="OnePlus 6 panel initialized via backported 5.19 MSM DRM driver" width="100%"><br>
-      <em>The OnePlus 6 panel successfully lighting up using the backported mainline display pipeline.</em>
-    </td>
-    <td align="center" width="50%">
-      <img src="assets/fbgrab.png" alt="OnePlus 6 DRM/KMS Framebuffer Console Output" width="100%"><br>
-      <em>Raw <code>fbgrab</code> frame buffer dump (Kernel 4.19.255)</em>
-    </td>
-  </tr>
-</table>
+---
+
+<p align="center">
+  <img src="assets/panel_light_up.jpg" alt="OnePlus 6 panel initialized via backported 5.19 MSM DRM driver" width="600">
+  <br>
+  <em>The OnePlus 6 panel successfully lighting up using the backported mainline display pipeline. </em>
+</p>
 (I don't really have a good device to take photos, please excuse my terrible photography skills 🙃)
+
+---
+---
+
+<p align="center">
+  <img src="assets/fbgrab.png" alt="OnePlus 6 DRM/KMS Framebuffer Console Output" width="550">
+  <br>
+  <em>Raw <code>fbgrab</code> frame buffer dump (Kernel 4.19.255)</em>
+</p>
+
+---
 
 *   **IOMMU:** Translation and context bank allocation are stable.
 *   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
