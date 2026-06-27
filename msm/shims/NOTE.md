@@ -269,3 +269,171 @@ But most importantly, the panel lights up!
 [   48.033263] Internal error: Oops: 96000005 [#1] PREEMPT SMP
 ...
 ```
+
+### Modetest (when GMU/GPU is skipped) and state
+
+```sh
+[root@localhost ~]# modetest -M msm -M msm -c
+opened device `MSM Snapdragon DRM` on driver `msm` (version 1.9.0 at 20130625)
+Connectors:
+id      encoder status          name            size (mm)       modes   encoders
+29      28      connected       DSI-1           68x145          1       28
+  modes:
+        index name refresh (Hz) hdisp hss hse htot vdisp vss vse vtot
+  #0 1080x2280 60.00 1080 1192 1208 1244 2280 2316 2324 2336 174359 flags: ; type: preferred, driver
+  props:
+        1 EDID:
+                flags: immutable blob
+                blobs:
+
+                value:
+        2 DPMS:
+                flags: enum
+                enums: On=0 Standby=1 Suspend=2 Off=3
+                value: 0
+        5 link-status:
+                flags: enum
+                enums: Good=0 Bad=1
+                value: 0
+        6 non-desktop:
+                flags: immutable range
+                values: 0 1
+                value: 0
+
+[root@localhost ~]# cat /sys/kernel/debug/dri/0/state
+plane[30]: plane-0
+        crtc=crtc-0
+        fb=81
+                allocated by = [fbcon]
+                refcount=2
+                format=XR24 little-endian (0x34325258)
+                modifier=0x0
+                size=1080x2280
+                layers:
+                        size[0]=1080x2280
+                        pitch[0]=4352
+                        offset[0]=0
+                        obj[0]:
+                                name=0
+                                refcount=1
+                                start=00000000
+                                size=9924608
+                                imported=no
+        crtc-pos=1080x2280+0+0
+        src-pos=1080.000000x2280.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=1
+        sspp=sspp_0
+        multirect_mode=none
+        multirect_index=solo
+plane[36]: plane-1
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_1
+        multirect_mode=none
+        multirect_index=solo
+plane[42]: plane-2
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_2
+        multirect_mode=none
+        multirect_index=solo
+plane[48]: plane-3
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_3
+        multirect_mode=none
+        multirect_index=solo
+plane[54]: plane-4
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_8
+        multirect_mode=none
+        multirect_index=solo
+plane[60]: plane-5
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_9
+        multirect_mode=none
+        multirect_index=solo
+plane[66]: plane-6
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_10
+        multirect_mode=none
+        multirect_index=solo
+plane[72]: plane-7
+        crtc=(null)
+        fb=0
+        crtc-pos=0x0+0+0
+        src-pos=0.000000x0.000000+0.000000+0.000000
+        rotation=1
+        normalized-zpos=0
+        color-encoding=ITU-R BT.601 YCbCr
+        color-range=YCbCr limited range
+        stage=0
+        sspp=sspp_11
+        multirect_mode=none
+        multirect_index=solo
+crtc[78]: crtc-0
+        enable=1
+        active=1
+        planes_changed=1
+        mode_changed=0
+        active_changed=0
+        connectors_changed=0
+        color_mgmt_changed=0
+        plane_mask=1
+        connector_mask=1
+        encoder_mask=1
+        mode: 0:"1080x2280" 60 174359 1080 1192 1208 1244 2280 2316 2324 2336 0x48 0x0
+        lm[0]=0
+        ctl[0]=2
+connector[29]: DSI-1
+        crtc=crtc-0
+```
