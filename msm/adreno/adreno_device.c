@@ -415,9 +415,6 @@ struct msm_gpu *adreno_load_gpu(struct drm_device *dev)
 	if (ret)
 		return NULL;
 
-	/* Patch: Now that we actually have the firmware enable pm */
-    pm_runtime_enable(&pdev->dev);
-
     /* Make sure pm runtime is active and reset any previous errors */
     pm_runtime_set_active(&pdev->dev);
 
@@ -506,7 +503,6 @@ static int adreno_bind(struct device *dev, struct device *master, void *data)
 
 	dev->platform_data = &config;
 	priv->gpu_pdev = to_platform_device(dev);
-
 	info = adreno_info(config.rev);
 
 	if (!info) {
