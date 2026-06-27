@@ -137,15 +137,18 @@ under alpha again:
 that's literally it.
 All the other newer helpers for reset and everything were backported painlessly into this driver.
 
-
 ## CURRENT STATUS:
-**MSM module from:** 5.19
-**Kernel version:** 4.19.255 - For Oneplus6/6T by EdwinMoq
+**MSM module source:** Upstream Linux 5.19
+**Kernel version(The one I am on):** 4.19.255 - For Oneplus6/6T by EdwinMoq
 
-**Baseline:** The driver probes.
-* **GPU pipeline:** GMU read/write is cursed. (doing either causes a full system crash and pstore on the next reboot is empty)
-	- **Cause:** Unknown.
-	- **Observation:** This same issue happens on the backported 5.4 MSM driver. Which is even closer to 4.19 and I'd argue it's **the same without all the assumptions.**
+### 🟢 Baseline & Core Subsystems
+* **MDSS/DPU Pipeline:** Fully functional. Hardware interfaces probe flawlessly, `modetest` queries complete successfully, and early bootloader framebuffer hand-off transitions beautifully into the legacy TTY console (`/dev/fb0`).
+* **SMMU Layer:** Stable. IOMMU context banks are mapped and allocated safely.
+But most importantly, the panel lights up!
+
+### 🟡 GPU & GMU Status (In Progress)
+* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was broken incorrect in the device tree blobs (I am so stupid 🙃)
+* **CURRENT HARD STOP:** Pushing past the register block exposes an execution failure downstream during command engine hand-off:
 
 **Quick comparisons:**
 * **4.19 MSM:**
@@ -162,45 +165,6 @@ All the other newer helpers for reset and everything were backported painlessly 
 	- iommu don't do the forbidden technique of flipping power every time.
 	- 2-3 SoC's are now supported.
 `drm_irq_install` is still used which causes issues but it's nothing we can't fix and get the driver to fully init.
-After init testing the gmu_resume pipeline shows that, gmu_read/gmu_write causes the same issue this 5.19 driver is causing...
-
-**Ideas:** Thoroughly look at what downstream KGSL does to even work.
-## Example:
-```
-    clock_gpucc: qcom,gpucc@5090000 {
-        compatible = "qcom,gpucc-sdm845", "syscon";
-        reg = <0x5090000 0x9000>;
-        reg-names = "cc_base";
-        vdd_cx-supply = <&pm8998_s9_level>;
-        vdd_mx-supply = <&pm8998_s6_level>;
-        qcom,gpu_cc_gmu_clk_src-opp-handle = <&gmu>;
-        #clock-cells = <1>;
-        #reset-cells = <1>;
-        // as per mainline patch
-        #power-domain-cells = <1>;
-    };
-```
-
-`clock_gpucc` appears to be doing something special on downstream.. it tries to hook `gpu_cc_gmu_clk_src-opp-handle` to the KGSL gmu..
-```
-		/* Mine */
-		mainline_gmu: gmu@506a000 {
-			compatible="qcom,adreno-gmu-630.2", "qcom,adreno-gmu";
-
-		/* KGSL */
-	    gmu: qcom,gmu {
-	        label = "kgsl-gmu";
-	        compatible = "qcom,gpu-gmu";
-
-```
-As of right now, I don't know what this is, let alone what it could mean.
-	- what is it doing?
-	- Is this just a special way for KGSL to construct an opp-table?
-	- Why is it that this "special" opp-table seems to be nowhere in the device tree? (is it only in memory?)
-	- What happens if we stub that line out and force KGSL to probe?
-
-* **MDSS/DPU pipline:** Seems to be working, modetest prints fine as long as we skip `gmu_resume`
-    - Panel lights up!
 
 ## FIXES/added funcs to MSM:
 
@@ -247,6 +211,7 @@ As of right now, I don't know what this is, let alone what it could mean.
 
 ## Current Logs:
 
+### MDSS/DPU/DSI/DSI_PHY and Panel pipeline:
 ```sh
 [   29.087615] panel_samsung_sofef00: loading out-of-tree module taints kernel.
 [   29.096408] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
@@ -279,4 +244,26 @@ As of right now, I don't know what this is, let alone what it could mean.
 [   31.413140] Console: switching to colour dummy device 80x25
 [   31.483130] Console: switching to colour frame buffer device 135x142
 [   31.509662] msm_dpu ae01000.mdp: fb0: msmdrmfb frame buffer device
+```
+
+### GPU/GMU bring-up pipeline:
+```sh
+[   48.032121] [drm:adreno_idle [msm]] *ERROR* A630: timeout waiting to drain ringbuffer 0 rptr/wptr = C/11
+[   48.032340] adreno 5000000.gpu: [drm:a6xx_irq [msm]] *ERROR* gpu fault ring 0 fence 0 status 00800005 rb 0011/0011 ib1 0000000000000000/0000 ib2 0000000000000000/0000
+[   48.032429] msm_dpu ae01000.mdp: [drm:adreno_load_gpu [msm]] *ERROR* gpu hw init failed: -22
+[   48.032572] adreno 5000000.gpu: CP | opcode error | possible opcode=0x70E60001
+[   48.032679] msm_dpu ae01000.mdp: [drm:recover_worker [msm]] *ERROR* A630: hangcheck recover!
+[   48.032930] Unable to handle kernel NULL pointer dereference at virtual address 0000000000000010
+[   48.032983] Mem abort info:
+[   48.033004]   ESR = 0x96000005
+[   48.033028]   Exception class = DABT (current EL), IL = 32 bits
+[   48.033063]   SET = 0, FnV = 0
+[   48.033085]   EA = 0, S1PTW = 0
+[   48.033107] Data abort info:
+[   48.033128]   ISV = 0, ISS = 0x00000005
+[   48.033154]   CM = 0, WnR = 0
+[   48.033179] user pgtable: 4k pages, 39-bit VAs, pgdp = 000000009e40f346
+[   48.033218] [0000000000000010] pgd=0000000000000000, pud=0000000000000000
+[   48.033263] Internal error: Oops: 96000005 [#1] PREEMPT SMP
+...
 ```

@@ -65,6 +65,7 @@ It's really understanding the problem because the fix is trivial. All it takes i
 
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
+*	**GMU Register Access:** Resolved initial crashes during `gmu_resume` (gmu_read/gmu_write are now functional).
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -102,7 +103,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 ---
 
 *   **IOMMU:** Translation and context bank allocation are stable.
-*   **GPU:** GMU register access still causes hangs in `gmu_resume` (gmu_read/gmu_write are broken.)
+*	**GPU:** GMU register access and `gmu_resume` are functional. However, a ringbuffer drain timeout occurs during GPU hardware initialization (`adreno_load_gpu` failing with `-22`), leading to a Command Processor (CP) opcode error (`possible opcode=0x70E60001`) and a subsequent kernel NULL pointer dereference panic during hangcheck recovery.
 
 ## 🛠️ Integration
 
