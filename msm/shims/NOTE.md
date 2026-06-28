@@ -198,7 +198,7 @@ But most importantly, the panel lights up!
 ```
 * In `disp/dpu_kms.c` function `_dpu_kms_mmu_init`.
 	- Domain is handled differently for downstream. A fix has been set up so if `iommu_get_domain_for_dev` fails you immediately get the upstream fallback.
-	- Similiar changes to a6xx_gmu.c, a6xx_gpu.c. Search for `iommu_get_domain_for_dev`-you'll see it.
+	- Similiar changes to `a6xx_gmu.c`, `a6xx_gpu.c` and `adreno_gpu.c`. Search for `iommu_get_domain_for_dev`-you'll see it.
 
 **performance state votes specifically for 0:**
 * In `dsi/dsi_host.c` function `dsi_link_clk_disable_6g` added checks for `performance state vote`
@@ -209,6 +209,9 @@ But most importantly, the panel lights up!
 
 **Panel timeout issue specific to ONLY len 8 bytes:**
 * In `dsi/dsi_host.c` search for function `static int msm_dsi_create_packet` it acts as a replacement for mipi_dsi_create_packet() since android CAF's are weird.
+
+**Complete refractor of msm_gpu_freq.c**
+* Not really much I can say here. You'll just kinda have to see for yourself.
 
 ## Current Logs:
 
@@ -256,19 +259,6 @@ But most importantly, the panel lights up!
 [   48.032429] msm_dpu ae01000.mdp: [drm:adreno_load_gpu [msm]] *ERROR* gpu hw init failed: -22
 [   48.032572] adreno 5000000.gpu: CP | opcode error | possible opcode=0x70E60001
 [   48.032679] msm_dpu ae01000.mdp: [drm:recover_worker [msm]] *ERROR* A630: hangcheck recover!
-[   48.032930] Unable to handle kernel NULL pointer dereference at virtual address 0000000000000010
-[   48.032983] Mem abort info:
-[   48.033004]   ESR = 0x96000005
-[   48.033028]   Exception class = DABT (current EL), IL = 32 bits
-[   48.033063]   SET = 0, FnV = 0
-[   48.033085]   EA = 0, S1PTW = 0
-[   48.033107] Data abort info:
-[   48.033128]   ISV = 0, ISS = 0x00000005
-[   48.033154]   CM = 0, WnR = 0
-[   48.033179] user pgtable: 4k pages, 39-bit VAs, pgdp = 000000009e40f346
-[   48.033218] [0000000000000010] pgd=0000000000000000, pud=0000000000000000
-[   48.033263] Internal error: Oops: 96000005 [#1] PREEMPT SMP
-...
 ```
 
 ### Modetest (when GMU/GPU is skipped) and state
