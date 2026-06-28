@@ -447,6 +447,7 @@
 			power-domain-names = "cx", "gx";
 
 			dma-ranges = <0 0x60000000 0 0x60000000 0 0x20000000>;
+			//dma-ranges = <0x60000000 0x60000000 0x20000000>;
 
 			iommus = <&adreno_smmu 5>;
 
@@ -471,9 +472,29 @@
 
 #include "sdm845-v2.1.dtsi"
 
+/* HACK: Since I don't want to bother documenting a fix that is unbelievably
+ * stupid and forces anyone in the future to have to add this:
+ * { .compatible = "qcom,scm-sdm845", .data = (void *) SCM_HAS_CORE_CLK,},
+ * We create a fake clock so the qcom_scm.c driver can shut up.
+ *
+ * NOTE: Only do this if you are absolutely certain your SoC firmware/hypervisor
+ * handles SCM clock gating internally.
+ */
+
+/ {
+	fake_scm_clk: fake-scm-clk {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <0>; /* 0 Hz is fine, the driver just wants a handle */
+	};
+};
+
 &firmware {
 	scm {
 		compatible = "qcom,scm-sdm845", "qcom,scm";
+
+		clocks = <&fake_scm_clk>, <&fake_scm_clk>, <&fake_scm_clk>;
+		clock-names = "core", "iface", "bus";
 	};
 };
 
@@ -576,7 +597,7 @@ POWER_NODE(clock_gpucc);
 &gpu {
     zap-shader {
         memory-region = <&pil_gpu_mem>;
-        firmware-name = "qcom/sdm845/oneplus6/a630_zap.mbn";
+        firmware-name = "qcom/sdm845/a630_zap.mbn";
     };
 };
 
@@ -639,3 +660,4 @@ DISABLE_NODE(dsi_panel_pwr_supply_vdd_no_labibb);
 DISABLE_NODE(sde_dsi);
 DISABLE_NODE(sde_wb);
 DISABLE_NODE(ext_disp);
+
