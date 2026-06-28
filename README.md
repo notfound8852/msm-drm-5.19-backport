@@ -82,7 +82,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 **NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional meaning the panel lights up EXCEPT for the GPU/GMU pipeline.
 
 *   **Probing:** Driver probes and initializes fully.
-*   **Display:** `modetest` works (as long as gmu_resume is never touched). Early framebuffer hand-off works and the panel does infact light up.
+*   **Display:** `modetest` works. (`msm_gpu_devfreq.c` was completely refractored.) Early framebuffer hand-off works and the panel does infact light up.
 
 ---
 
