@@ -906,14 +906,14 @@ static void a6xx_gmu_set_initial_freq(struct msm_gpu *gpu, struct a6xx_gmu *gmu)
 static void a6xx_gmu_set_initial_bw(struct msm_gpu *gpu, struct a6xx_gmu *gmu)
 {
 	struct dev_pm_opp *gpu_opp;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+//#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
 	unsigned long gpu_freq = gmu->gpu_freqs[gmu->current_perf_index];
-#else
+//#else
     /* Sometimes msm_gpu_devfreq isn't up.
      * Manually set it to a reasonable rate.
     */
-    unsigned long gpu_freq = gmu->gpu_freqs[2];
-#endif
+//    unsigned long gpu_freq = gmu->gpu_freqs[2];
+//#endif
 
 	gpu_opp = dev_pm_opp_find_freq_exact(&gpu->pdev->dev, gpu_freq, true);
 	if (IS_ERR(gpu_opp))

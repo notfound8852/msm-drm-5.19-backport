@@ -2,13 +2,15 @@
 /*
  * Copyright (c) 2015, The Linux Foundation. All rights reserved.
  */
-
-//#include "drm/drm_bridge_connector.h"
 #include <drm/drm_connector.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "msm_kms.h"
 #include "dsi.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+#include "drm/drm_bridge_connector.h"
+#endif
 
 #define DSI_CLOCK_MASTER	DSI_0
 #define DSI_CLOCK_SLAVE		DSI_1

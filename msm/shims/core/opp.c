@@ -2,7 +2,7 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 
-#include "../pm_opp.h"
+#include "linux/opp.h"
 
 struct msm_opp_tracker_entry {
 	struct device *dev;
@@ -12,6 +12,8 @@ struct msm_opp_tracker_entry {
 
 static LIST_HEAD(msm_opp_tracker_list);
 static DEFINE_MUTEX(msm_opp_tracker_lock);
+
+/* Function helpers */
 
 static struct msm_opp_resources *msm_opp_find_resources(struct device *dev)
 {
@@ -85,6 +87,8 @@ static void dev_pm_opp_of_put_clkname(void *data)
 {
 	dev_pm_opp_put_clkname(data);
 }
+
+/* Functions */
 
 int devm_pm_opp_of_add_table(struct device *dev)
 {

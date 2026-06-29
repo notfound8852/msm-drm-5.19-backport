@@ -7,7 +7,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 #include <drm/display/drm_dsc.h>
 #else
-#include "shims/backported/drm_dsc.h"
+#include "drm/display/drm_dsc.h"
 #endif
 
 #define DSC_MODE_SPLIT_PANEL            BIT(0)

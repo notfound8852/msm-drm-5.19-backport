@@ -12,8 +12,8 @@
 #include <linux/errno.h>
 #include <linux/byteorder/generic.h>
 
-#include "../backported/drm_dp_helper.h"
-#include "../backported/drm_dsc_helper.h"
+#include "drm/display/drm_dp_helper.h"
+#include "drm/display/drm_dsc_helper.h"
 #include <drm/drm_print.h>
 
 /**

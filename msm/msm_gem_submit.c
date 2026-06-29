@@ -358,18 +358,10 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		/* exclusive fences must be ordered */
 		if (no_implicit && !write)
 			continue;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
-							      obj,
-							      write);
+							      obj, write);
 		if (ret)
 			break;
-#else
-        ret = msm_gem_sync_object(&msm_obj->base, submit->ring->fctx,
-            write);
-        if (ret)
-            break;
-#endif
 	}
 
 	return ret;
@@ -996,22 +988,16 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			ret = -EINVAL;
 			goto out_unlock;
 		}
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+		/*
+		 * add_dependency consumes the in_fence ref and lets the
+		 * scheduler wait on it (foreign contexts included). The old
+		 * synchronous dma_fence_wait()/dma_fence_put() path that used to
+		 * live here would double-put the fence under the new scheduler
+		 * (and returned without cleanup), so it's gone.
+		 */
 		ret = drm_sched_job_add_dependency(&submit->base, in_fence);
 		if (ret)
 			goto out_unlock;
-#endif
-        /*
-         * Wait if the fence is from a foreign context, or if the fence
-         * array contains any fence from a foreign context.
-         */
-        ret = 0;
-        if (!dma_fence_match_context(in_fence, ring->fctx->context))
-            ret = dma_fence_wait(in_fence, true);
-
-        dma_fence_put(in_fence);
-        if (ret)
-            return ret;
 	}
 
 	if (args->flags & MSM_SUBMIT_SYNCOBJ_IN) {
@@ -1101,9 +1087,13 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		goto out;
 	}
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 15, 0)
+	/*
+	 * The v5.19 scheduler split arming out of drm_sched_job_init(): s_fence
+	 * (and its ->finished fence) is allocated HERE, not at init. Gating this
+	 * out is what left s_fence NULL and made the dma_fence_get() just below
+	 * panic with "refcount_t: increment on 0". Always arm.
+	 */
 	drm_sched_job_arm(&submit->base);
-#endif
 
 	submit->user_fence = dma_fence_get(&submit->base.s_fence->finished);
 
@@ -1150,11 +1140,8 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	/* The scheduler owns a ref now: */
 	msm_gem_submit_get(submit);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+	/* v5.16+ (and thus the backport) takes the single-arg form. */
 	drm_sched_entity_push_job(&submit->base);
-#else
-    drm_sched_entity_push_job(&submit->base, queue->entity);
-#endif
 	args->fence = submit->fence_id;
 	queue->last_fence = submit->fence_id;
 

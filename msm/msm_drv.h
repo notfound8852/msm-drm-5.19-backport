@@ -30,7 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_gem.h>
 
-#include "shims/drm_shim.h"
+#include "drm/drm_shim.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <drm/drm_probe_helper.h>
@@ -43,16 +43,16 @@
 #include <drm/display/drm_dsc.h>
 #include <drm/msm_drm.h>
 #else
-#include "shims/backported/drm_dsc.h"
+#include "drm/display/drm_dsc.h"
 #endif
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 17, 0)
-#include "shims/uapi_msm_drm.h"
-#include "shims/devm_compat.h"
+#include "uapi/uapi_msm_drm.h"
+#include "compat_and_shims/devm_compat.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-#include "shims/msm_compat_clk.h"
-#include "shims/pm_opp.h"
+#include "compat_and_shims/msm_compat_clk.h"
+#include "linux/pm_opp.h"
 #endif
 
 struct msm_kms;
@@ -286,6 +286,9 @@ int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
             struct vm_area_struct *vma);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
+int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+#endif
 
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, bool needs_dirtyfb);

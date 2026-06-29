@@ -135,14 +135,12 @@ get_sched_entity(struct msm_file_private *ctx, struct msm_ringbuffer *ring,
 
 	if (!ctx->entities[idx]) {
 		struct drm_sched_entity *entity;
-//		struct drm_gpu_scheduler *sched = &ring->sched;
-        struct drm_sched_rq *rq = &ring->sched.sched_rq[sched_prio];
+		struct drm_gpu_scheduler *sched = &ring->sched;
 		int ret;
 
 		entity = kzalloc(sizeof(*ctx->entities[idx]), GFP_KERNEL);
 
-//		ret = drm_sched_entity_init(entity, sched_prio, &sched, 1, NULL);
-        ret = drm_sched_entity_init(entity, &rq, 1, NULL);
+		ret = drm_sched_entity_init(entity, sched_prio, &sched, 1, NULL);
 		if (ret) {
 			mutex_unlock(&entity_lock);
 			kfree(entity);

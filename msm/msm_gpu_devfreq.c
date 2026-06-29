@@ -131,15 +131,37 @@ static int msm_devfreq_get_dev_status(struct device *dev, struct devfreq_dev_sta
 	update_average_dev_status(gpu, &raw);
 	*status = gpu->devfreq.average_status;
 #else
-	unsigned long sample_rate = 0; /* Dummy to satisfy 5.19 signature */
+	/*
+	 * On 5.16+ gpu_busy() does NOT return a busy *time* - it returns the
+	 * monotonic GMU busy-cycle counter and hands back the rate it's
+	 * sampled at (19.2MHz on a6xx). Convert it ourselves: take the delta
+	 * since the last poll and scale cycles -> microseconds so it lines up
+	 * with total_time for the ondemand governor.
+	 */
+	u64 busy_cycles, busy_time;
+	unsigned long sample_rate = 0;
 
 	status->current_frequency = get_freq(gpu);
-	/* Pass the pointer to satisfy the 5.19 driver's expectation */
-	status->busy_time = gpu->funcs->gpu_busy(gpu, &sample_rate);
-
+	busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
 	time = ktime_get();
+
+	busy_time = busy_cycles - gpu->devfreq.busy_cycles;
+	gpu->devfreq.busy_cycles = busy_cycles;
+
 	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
 	gpu->devfreq.time = time;
+
+	if (sample_rate) {
+		busy_time *= USEC_PER_SEC;
+		do_div(busy_time, sample_rate);
+	} else {
+		busy_time = 0;
+	}
+
+	if (busy_time > ~0LU)
+		busy_time = ~0LU;
+
+	status->busy_time = busy_time;
 #endif
 
 	return 0;
@@ -196,7 +218,10 @@ void msm_devfreq_init(struct msm_gpu *gpu)
 			return;
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 16, 0)
-	pr_info("Frequency QoS not supported on legacy code, using direct target mode\n");
+	pr_info("Frequency QoS not supported on: %d.%d.%d... using direct target mode\n",
+			 (LINUX_VERSION_CODE >> 16) & 0xff,
+			 (LINUX_VERSION_CODE >> 8) & 0xff,
+			 LINUX_VERSION_CODE & 0xff);
 #else
 	dev_pm_qos_add_request(&gpu->pdev->dev, &df->idle_freq,
 						   DEV_PM_QOS_MAX_FREQUENCY,

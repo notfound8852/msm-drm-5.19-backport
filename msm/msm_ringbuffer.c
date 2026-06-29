@@ -46,9 +46,9 @@ static struct dma_fence *msm_job_run(struct drm_sched_job *job)
 static void msm_job_free(struct drm_sched_job *job)
 {
 	struct msm_gem_submit *submit = to_msm_submit(job);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+
+	/* v5.19 API: drops s_fence and destroys the dependency xarray. */
 	drm_sched_job_cleanup(job);
-#endif
 	msm_gem_submit_put(submit);
 }
 
@@ -98,16 +98,16 @@ struct msm_ringbuffer *msm_ringbuffer_new(struct msm_gpu *gpu, int id,
 
 	 /* currently managing hangcheck ourselves: */
 	sched_timeout = MAX_SCHEDULE_TIMEOUT;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+	/*
+	 * The scheduler API is uniformly the v5.19 shape on every supported
+	 * base: the bundled backport supplies it on < 5.19, the in-tree
+	 * scheduler on >= 5.19, so this call site is no longer version-gated.
+	 * TODO: in-tree drm_sched_init() grew an args-struct signature at 6.7;
+	 * targeting a >= 6.7 base will need a gate here.
+	 */
 	ret = drm_sched_init(&ring->sched, &msm_sched_ops,
 			num_hw_submissions, 0, sched_timeout,
 			NULL, NULL, to_msm_bo(ring->bo)->name, gpu->dev->dev);
-#else
-    ret = drm_sched_init(&ring->sched, &msm_sched_ops,
-               32, 0,
-               msecs_to_jiffies(500),
-               to_msm_bo(ring->bo)->name);
-#endif
 	if (ret) {
 		goto fail;
 	}

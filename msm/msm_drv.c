@@ -951,7 +951,28 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_QUERY, msm_ioctl_submitqueue_query, DRM_RENDER_ALLOW),
 };
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+/* >= 5.15: drm_gem_mmap_obj() dispatches to obj->funcs->mmap
+ * (msm_gem_object_mmap), which applies the VM_MIXEDMAP fixup itself. */
 DEFINE_DRM_GEM_FOPS(fops);
+#else
+/*
+ * < 5.15: no obj->funcs->mmap dispatch, so open-code DEFINE_DRM_GEM_FOPS()
+ * and route mmap through msm_gem_mmap(), which re-applies the VM_MIXEDMAP
+ * fixup that the drm_gem_mmap() path skips on these kernels.
+ */
+static const struct file_operations fops = {
+	.owner		= THIS_MODULE,
+	.open		= drm_open,
+	.release	= drm_release,
+	.unlocked_ioctl	= drm_ioctl,
+	.compat_ioctl	= drm_compat_ioctl,
+	.poll		= drm_poll,
+	.read		= drm_read,
+	.llseek		= noop_llseek,
+	.mmap		= msm_gem_mmap,
+};
+#endif
 
 static const struct vm_operations_struct vm_ops = {
     .fault = msm_gem_fault,

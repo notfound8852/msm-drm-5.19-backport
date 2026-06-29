@@ -18,7 +18,7 @@
 #include "msm_gpu.h"
 #include "msm_mmu.h"
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
-#include "shims/reservation.h"
+#include "compat_and_shims/reservation.h"
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #include <linux/dma-map-ops.h>
@@ -247,6 +247,30 @@ int msm_gem_mmap_obj(struct drm_gem_object *obj,
 
     return 0;
 }
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
+/*
+ * file_operations-level mmap for kernels that predate the GEM
+ * drm_gem_object_funcs.mmap dispatch path msm uses on >= 5.15. There,
+ * drm_gem_mmap_obj() forces VM_PFNMAP and dispatches the fault handler via
+ * dev->driver->gem_vm_ops; it does NOT honour obj->funcs->mmap. So the obj
+ * funcs .mmap (msm_gem_object_mmap) that flips the VMA to VM_MIXEDMAP never
+ * runs, the VMA stays VM_PFNMAP, and msm_gem_fault()'s vmf_insert_mixed()
+ * trips BUG_ON(!vm_mixed_ok()). Re-run the msm fixup here, like mainline did.
+ */
+int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
+{
+    int ret;
+
+    ret = drm_gem_mmap(filp, vma);
+    if (ret) {
+        DBG("mmap failed: %d", ret);
+        return ret;
+    }
+
+    return msm_gem_mmap_obj(vma->vm_private_data, vma);
+}
+#endif
 
 static pgprot_t msm_gem_pgprot(struct msm_gem_object *msm_obj, pgprot_t prot)
 {

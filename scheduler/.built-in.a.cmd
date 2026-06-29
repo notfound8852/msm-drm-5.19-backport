@@ -1,0 +1,1 @@
+cmd_drivers/gpu/drm/scheduler/built-in.a :=  rm -f drivers/gpu/drm/scheduler/built-in.a; aarch64-linux-android-ar rcSTPD drivers/gpu/drm/scheduler/built-in.a drivers/gpu/drm/scheduler/sched_main.o drivers/gpu/drm/scheduler/sched_fence.o drivers/gpu/drm/scheduler/sched_entity.o

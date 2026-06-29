@@ -10,12 +10,8 @@
 #include <linux/debugfs.h>
 #include <linux/dma-buf.h>
 
-//#include <drm/drm_atomic.h>
-//#include <drm/drm_atomic_uapi.h>
 #include <drm/drm_atomic.h>
-// #include <drm/drm_damage_helper.h>
 #include <drm/drm_atomic_helper.h>
-//#include <drm/drm_gem_atomic_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
@@ -25,6 +21,17 @@
 #include "dpu_crtc.h"
 #include "dpu_vbif.h"
 #include "dpu_plane.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+#include <drm/drm_gem_atomic_helper.h>
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#include <drm/drm_atomic_uapi.h>
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
+#include <drm/drm_damage_helper.h>
+#include <drm/drm_gem_framebuffer_helper.h>
+#endif
 
 #define DPU_DEBUG_PLANE(pl, fmt, ...) DRM_DEBUG_ATOMIC("plane%d " fmt,\
 		(pl) ? (pl)->base.base.id : -1, ##__VA_ARGS__)

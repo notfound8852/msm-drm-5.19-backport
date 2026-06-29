@@ -1,4 +1,4 @@
-#include "../interconnector.h"
+#include "linux/interconnector.h"
 #include <linux/slab.h>
 #include <linux/export.h>
 
