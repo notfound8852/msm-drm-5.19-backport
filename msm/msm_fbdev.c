@@ -4,7 +4,6 @@
  * Author: Rob Clark <robdclark@gmail.com>
  */
 
-//#include <drm/drm_aperture.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
@@ -13,6 +12,10 @@
 #include "msm_drv.h"
 #include "msm_gem.h"
 #include "msm_kms.h"
+
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 14, 0)
+#include <drm/drm_aperture.h>
+#endif
 
 static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma);
 

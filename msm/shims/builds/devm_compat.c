@@ -3,11 +3,11 @@
 
 /**
  * devm_platform_ioremap_resource_byname - call devm_ioremap_resource for
- *                     a platform device, retrieve the
- *                     resource by name
+ *					 a platform device, retrieve the
+ *					 resource by name
  *
  * @pdev: platform device to use both for memory resource lookup as well as
- *    resource management
+ *	resource management
  * @name: name of the resource
  *
  * Return: a pointer to the remapped memory or an ERR_PTR() encoded error code
@@ -32,9 +32,7 @@ EXPORT_SYMBOL(devm_platform_ioremap_resource_byname);
  * component_match_add_release(masterdev, &match, component_release_of,
  * component_compare_of, component_dev_of_node)
  */
-
 int component_compare_of(struct device *dev, void *data) {
     return dev->of_node == data;
 }
-
 EXPORT_SYMBOL(component_compare_of);

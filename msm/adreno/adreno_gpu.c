@@ -211,9 +211,16 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 	struct msm_gem_address_space *aspace;
 	u64 start, size;
 
-	iommu = iommu_domain_alloc(&platform_bus_type);
-	if (!iommu)
-		return NULL;
+	/* Repeating the pattern of checking before allocation to be absolutely sure. */
+	iommu = iommu_get_domain_for_dev(&pdev->dev);
+	if (!iommu) {
+		DRM_DEV_INFO(&pdev->dev, "No existing IOMMU domain found, falling back to alloc\n");
+		iommu = iommu_domain_alloc(&platform_bus_type);
+		if (!iommu)
+			return NULL;
+	} else {
+		DRM_DEV_INFO(&pdev->dev, "Using existing IOMMU domain\n");
+	}
 
 	mmu = msm_iommu_new(&pdev->dev, iommu);
 	if (IS_ERR(mmu)) {

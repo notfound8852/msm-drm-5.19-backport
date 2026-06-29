@@ -24,7 +24,7 @@ msm-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += \
     shims/builds/interconnector.o \
     shims/builds/devm_compat.o \
     shims/builds/drm_shim.o \
-    shims/builds/pm_opp.o \
+    shims/builds/opp.o \
 
 msm-$(CONFIG_DRM_MSM_HDMI) += \
 	hdmi/hdmi.o \

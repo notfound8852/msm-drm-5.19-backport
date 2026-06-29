@@ -15,6 +15,12 @@ In `drivers/clk/qcom/gpucc-sdm845.c` add these:
 ```c
 #include "gdsc.h"
 
+int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain)
+{
+    /* Do nothing with the GDSC itself */
+    return 0;
+}
+
 static struct gdsc gpu_gx_gdsc = {
 	.gdscr = 0x100c,
 	.clamp_io_ctrl = 0x1508,
@@ -148,7 +154,8 @@ But most importantly, the panel lights up!
 
 ### 🟡 GPU & GMU Status (In Progress)
 * **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was broken incorrect in the device tree blobs (I am so stupid 🙃)
-* **CURRENT HARD STOP:** Pushing past the register block exposes an execution failure downstream during command engine hand-off:
+* **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
+* **Current issue(s):** GPU Schedular needs to be backported from 5.19. 🙃 (I'll likely also do something about the drm_syncobj thing.)
 
 **Quick comparisons:**
 * **4.19 MSM:**
@@ -254,12 +261,39 @@ But most importantly, the panel lights up!
 ```sh
 [   47.021251] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_sqe.fw from new location
 [   47.021913] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_gmu.bin from new location
-[   48.032121] [drm:adreno_idle [msm]] *ERROR* A630: timeout waiting to drain ringbuffer 0 rptr/wptr = C/11
-[   48.032340] adreno 5000000.gpu: [drm:a6xx_irq [msm]] *ERROR* gpu fault ring 0 fence 0 status 00800005 rb 0011/0011 ib1 0000000000000000/0000 ib2 0000000000000000/0000
-[   48.032429] msm_dpu ae01000.mdp: [drm:adreno_load_gpu [msm]] *ERROR* gpu hw init failed: -22
-[   48.032572] adreno 5000000.gpu: CP | opcode error | possible opcode=0x70E60001
-[   48.032679] msm_dpu ae01000.mdp: [drm:recover_worker [msm]] *ERROR* A630: hangcheck recover!
 ```
+
+### GPU/GMU during actual rendering (cleaned up log):
+```
+[   58.580280] Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000
+[   58.580353] Mem abort info:
+[   58.580377]   ESR = 0x86000005
+[   58.580402]   Exception class = IABT (current EL), IL = 32 bits
+[   58.580439]   SET = 0, FnV = 0
+[   58.580461]   EA = 0, S1PTW = 0
+[   58.580488] user pgtable: 4k pages, 39-bit VAs, pgdp = 000000006be0c58b
+[   58.580528] [0000000000000000] pgd=0000000000000000, pud=0000000000000000
+[   58.580575] Internal error: Oops: 86000005 [#1] PREEMPT SMP
+[   58.580611] Modules linked in: msm(OE) panel_samsung_sofef00(OE)
+[   58.580655] Process ring0 (pid: 653, stack limit = 0x00000000011b169f)
+[   58.580700] CPU: 5 PID: 653 Comm: ring0 Tainted: G           OE     4.19.325-cip128-st12-notfound-g00a7a9fa72f4 #242
+[   58.580758] Hardware name: Qualcomm Technologies, Inc. SDM845 v2.1 MTP PVT (DT)
+[   58.580803] pstate: 60c00005 (nZCv daif +PAN +UAO)
+[   58.580833] pc :           (null)
+[   58.580869] lr : drm_sched_entity_pop_job+0x48/0x26c
+[   58.580901] sp : ffffff8018a53d60
+...
+[   58.581436] Call trace:
+[   58.581456]            (null)
+[   58.581480]  drm_sched_main+0x16c/0x2c0
+[   58.581512]  kthread+0x140/0x1fc
+[   58.581540]  ret_from_fork+0x10/0x18
+[   58.581569] Code: bad PC value
+[   58.581595] ---[ end trace 152ce7bf58fcd4de ]---
+[   58.581626] Kernel panic - not syncing: Fatal exception
+...
+```
+
 
 ### Modetest (when GMU/GPU is skipped) and state
 

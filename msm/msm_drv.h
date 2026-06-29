@@ -286,6 +286,9 @@ int msm_gem_prime_pin(struct drm_gem_object *obj);
 void msm_gem_prime_unpin(struct drm_gem_object *obj);
 int msm_gem_mmap_obj(struct drm_gem_object *obj,
             struct vm_area_struct *vma);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
+int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
+#endif
 
 int msm_framebuffer_prepare(struct drm_framebuffer *fb,
 		struct msm_gem_address_space *aspace, bool needs_dirtyfb);

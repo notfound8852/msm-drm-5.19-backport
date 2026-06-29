@@ -46,4 +46,20 @@
 #endif
 
 #endif /* LINUX_VERSION_CODE */
+
+/*
+ * v5.9 removed drm_gem_object_put_unlocked() and made drm_gem_object_put()
+ * the atomic (no struct_mutex) variant. Before 5.9, drm_gem_object_put() is
+ * the LOCKED variant that WARN_ON()s unless dev->struct_mutex is held - which
+ * msm (an unlocked-GEM driver) never does. For < 5.9, route the module's
+ * 5.x-semantics calls to the still-present unlocked variant; >= 5.9 already
+ * has the right semantics (and no _unlocked symbol to alias to).
+ * Sits after <drm/drm_gem.h> (included by msm_drv.h before this header).
+ */
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
+#ifndef drm_gem_object_put
+#define drm_gem_object_put drm_gem_object_put_unlocked
+#endif
+#endif
+
 #endif /* DRM_SHIM_H */

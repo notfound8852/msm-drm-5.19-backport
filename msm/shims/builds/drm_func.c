@@ -60,27 +60,27 @@ int drm_plane_create_blend_mode_property(struct drm_plane *plane,
 EXPORT_SYMBOL(drm_plane_create_blend_mode_property);
 
 static int __drm_object_property_get_prop_value(struct drm_mode_object *obj,
-                        struct drm_property *property,
-                        uint64_t *val)
+						struct drm_property *property,
+						uint64_t *val)
 {
-    int i;
+	int i;
 
-    for (i = 0; i < obj->properties->count; i++) {
-        if (obj->properties->properties[i] == property) {
-            *val = obj->properties->values[i];
-            return 0;
-        }
-    }
+	for (i = 0; i < obj->properties->count; i++) {
+		if (obj->properties->properties[i] == property) {
+			*val = obj->properties->values[i];
+			return 0;
+		}
+	}
 
-    return -EINVAL;
+	return -EINVAL;
 }
 int drm_object_property_get_default_value(struct drm_mode_object *obj,
-                      struct drm_property *property,
-                      uint64_t *val)
+					  struct drm_property *property,
+					  uint64_t *val)
 {
-    WARN_ON(!drm_drv_uses_atomic_modeset(property->dev));
+	WARN_ON(!drm_drv_uses_atomic_modeset(property->dev));
 
-    return __drm_object_property_get_prop_value(obj, property, val);
+	return __drm_object_property_get_prop_value(obj, property, val);
 }
 EXPORT_SYMBOL(drm_object_property_get_default_value);
 

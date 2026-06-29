@@ -447,7 +447,6 @@
 			power-domain-names = "cx", "gx";
 
 			dma-ranges = <0 0x60000000 0 0x60000000 0 0x20000000>;
-			//dma-ranges = <0x60000000 0x60000000 0x20000000>;
 
 			iommus = <&adreno_smmu 5>;
 
@@ -595,10 +594,10 @@ POWER_NODE(clock_gpucc);
 };
 
 &gpu {
-    zap-shader {
-        memory-region = <&pil_gpu_mem>;
-        firmware-name = "qcom/sdm845/a630_zap.mbn";
-    };
+	zap-shader {
+		memory-region = <&pil_gpu_mem>;
+		firmware-name = "qcom/sdm845/a630_zap.mbn";
+	};
 };
 
 &mainline_dsi0_out {
@@ -631,7 +630,14 @@ DISABLE_NODE(sde_dp);
  * Disable KGSL.
  */
 DISABLE_NODE(msm_bus);
-DISABLE_NODE(pil_gpu);
+
+/* NOTE: Leaving pil_gpu enabled means the qcom,pil-tz-generic
+ * driver probes pas-id 13 and authenticates the zap at boot
+ * putting the GPU's secure pipeline in the right state so the
+ *  msm driver's CP_SET_SECURE_MODE can be accepted.
+ */
+//DISABLE_NODE(pil_gpu);
+
 DISABLE_NODE(gpu_bw_tbl);
 DISABLE_NODE(msm_gpu);
 DISABLE_NODE(gpubw);

@@ -104,6 +104,7 @@ struct msm_gpu_devfreq {
 	/** devfreq: devfreq instance */
 	struct devfreq *devfreq;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
 	/**
 	 * idle_constraint:
 	 *
@@ -118,6 +119,18 @@ struct msm_gpu_devfreq {
 	 * until the boost expires.
 	 */
 	struct dev_pm_qos_request boost_freq;
+#else
+	/**
+	 * idle_freq:
+	 *
+	 * Shadow frequency used while the GPU is idle.  From the PoV of
+	 * the devfreq governor, we are continuing to sample busyness and
+	 * adjust frequency while the GPU is idle, but we use this shadow
+	 * value as the GPU is actually clamped to minimum frequency while
+	 * it is inactive.
+	 */
+	unsigned long idle_freq;
+#endif
 
 	/**
 	 * busy_cycles: Last busy counter value, for calculating elapsed busy
@@ -130,16 +143,16 @@ struct msm_gpu_devfreq {
 
 	/** idle_time: Time of last transition to idle: */
 	ktime_t idle_time;
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
 	struct devfreq_dev_status average_status;
-
+#endif
 	/**
 	 * idle_work:
 	 *
 	 * Used to delay clamping to idle freq on active->idle transition.
 	 */
 	struct msm_hrtimer_work idle_work;
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
 	/**
 	 * boost_work:
 	 *
@@ -147,6 +160,7 @@ struct msm_gpu_devfreq {
 	 * elapsed
 	 */
 	struct msm_hrtimer_work boost_work;
+#endif
 };
 
 struct msm_gpu {

@@ -68,6 +68,14 @@ It's really understanding the problem because the fix is trivial. All it takes i
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
 *	**GMU Register Access:** Resolved initial crashes during `gmu_resume` (gmu_read/gmu_write are now functional).
+### ⚠️ The Zap Shader / Secure Pipeline Alignment Block
+During initial attempts to bring up the engine, the command processor would always fail on a hardware packet submission, throwing a CP opcode error (`possible opcode=0x70E60001`) and caused a time out on the ringbuffer execution.
+
+#### The Root Cause
+The upstream driver issues `CP_SET_SECURE_MODE` instructions assuming the GPU's hardware secure pipeline state is managed appropriately. Downstream, this state completely relies on the TrustZone generic Peripheral Image Loader (`qcom,pil-tz-generic`) authenticating the secure Zap shader firmware layer. If the GPU peripheral node is disabled during hardware handoff, the secure pipeline drops into an unauthenticated state, causing the hardware to flat-out reject standard kernel initialization sequences.
+
+#### The Fix
+We ensured the platform's peripheral image loader remains fully operational at boot rather than dropping or stubbing it out. Leaving the secure hardware node enabled in the device tree blobs allows the trustzone layer to safely probe PAS-ID 13 (or whatever ID it maybe in your case) and execute early authentication.
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -79,7 +87,7 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core driver is functional meaning the panel lights up EXCEPT for the GPU/GMU pipeline.
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core hardware layer is functional, meaning the panel lights up and the GPU successfully initializes and goes into IDLE.
 
 *   **Probing:** Driver probes and initializes fully.
 *   **Display:** `modetest` works. (`msm_gpu_devfreq.c` was completely refractored.) Early framebuffer hand-off works and the panel does infact light up.
@@ -106,6 +114,9 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 *   **IOMMU:** Translation and context bank allocation are stable.
 *	**GPU:** GMU register access and `gmu_resume` are functional. However, a ringbuffer drain timeout occurs during GPU hardware initialization (`adreno_load_gpu` failing with `-22`), leading to a Command Processor (CP) opcode error (`possible opcode=0x70E60001`) and a subsequent kernel NULL pointer dereference panic during hangcheck recovery.
+* **GPU & GMU Core:** The GMU successfully handles power sequences, register domains are stable, and firmware validation executes directly into a clean engine idle loop.
+* **DRM Scheduler:** **CURRENT HARD STOP.** Now that the GPU hardware successfully spins up, the software job subsystem triggers an immediate kernel panic inside the DRM scheduler. This requires a structural rewrite or backport of the scheduler core to safely map modern 5.19 engine tasks onto legacy downstream 4.19 thread behaviors.
+
 
 ## 🛠️ Integration
 
