@@ -25,10 +25,10 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
 #include <linux/nvmem-consumer.h>
 #else
-#include "../shims/nvmem-consumer.h"
+#include "compat_and_shims/nvmem-consumer.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-#include "shims/iommu_shims.h"
+#include "compat_and_shims/iommu_shims.h"
 #endif
 
 static bool zap_available = true;

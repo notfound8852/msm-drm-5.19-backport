@@ -24,7 +24,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 #include <linux/interconnect.h>
 #else
-#include "../../shims/interconnector.h"
+#include "linux/interconnector.h"
 #endif
 
 #define DRMID(x) ((x) ? (x)->base.id : -1)

@@ -105,7 +105,7 @@ static const struct qcom_cc_desc disp_cc_sdm845_desc = {
 ```
 
 
-* drm_plane_create_blend_mode_property backported! inside `backported/drm_func.c`
+* drm_plane_create_blend_mode_property backported! inside `core/drm_missing_func.c`
 NOTE: 4.19 doesn't have `pixel_blend_mode` and `blend_mode_property`
 these fields were manually added inside `struct drm_plane_state {` in `include/drm/drm_plane.h`
 ## Example:
@@ -128,7 +128,7 @@ these fields were manually added inside `struct drm_plane_state {` in `include/d
 	struct drm_property *blend_mode_property;
 ```
 
-and then in `drivers/gpu/drm/drm_atomic.c` funtion `drm_atomic_plane_set_property`
+and then in `drivers/gpu/drm/drm_atomic.c` function `drm_atomic_plane_set_property`
 this was added under alpha:
 ```
 	} else if (property == plane->blend_mode_property) {
@@ -152,10 +152,11 @@ All the other newer helpers for reset and everything were backported painlessly 
 * **SMMU Layer:** Stable. IOMMU context banks are mapped and allocated safely.
 But most importantly, the panel lights up!
 
-### 🟡 GPU & GMU Status (In Progress)
-* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was broken incorrect in the device tree blobs (I am so stupid 🙃)
+### 🟢 GPU & GMU Status
+* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
 * **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
-* **Current issue(s):** GPU Schedular needs to be backported from 5.19. 🙃 (I'll likely also do something about the drm_syncobj thing.)
+* **DRM Scheduler:** **BACKPORTED & WORKING.** 🙃 Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
+* **Still on the list:** the `drm_syncobj` timeline situation (the Vulkan APIs). I'll get to it.
 
 **Quick comparisons:**
 * **4.19 MSM:**
@@ -171,7 +172,7 @@ But most importantly, the panel lights up!
 	- iova_pin_and_get is used.
 	- iommu don't do the forbidden technique of flipping power every time.
 	- 2-3 SoC's are now supported.
-`drm_irq_install` is still used which causes issues but it's nothing we can't fix and get the driver to fully init.
+`drm_irq_install` is still used which can cause issues. (In my case, it kept returning `-22` even though nothing was wrong.) But it's nothing we can't fix by backporting the `msm_irq_install` function from a version like 5.18.
 
 ## FIXES/added funcs to MSM:
 
@@ -181,7 +182,7 @@ But most importantly, the panel lights up!
 **Module insmod from userspace:**
 * In msm_mdss.c function name `inline int dev_gdsc_enable(struct platform_device *pdev)`
 	- used in `msm_mdss_init` in file `msm_mdss.c`
-	- using in `a6xx_gmu_init` in fikle `adreno/a6xx_gmu.c`
+	- used in `a6xx_gmu_init` in file `adreno/a6xx_gmu.c`
 
 **Aperture remove conflicing framebuffers:**
 * In msm_fbdev.c function name `static inline int msm_aperture_remove_framebuffers()`
@@ -205,7 +206,7 @@ But most importantly, the panel lights up!
 ```
 * In `disp/dpu_kms.c` function `_dpu_kms_mmu_init`.
 	- Domain is handled differently for downstream. A fix has been set up so if `iommu_get_domain_for_dev` fails you immediately get the upstream fallback.
-	- Similiar changes to `a6xx_gmu.c`, `a6xx_gpu.c` and `adreno_gpu.c`. Search for `iommu_get_domain_for_dev`-you'll see it.
+	- Similar changes to `a6xx_gmu.c`, `a6xx_gpu.c` and `adreno_gpu.c`. Search for `iommu_get_domain_for_dev`-you'll see it.
 
 **performance state votes specifically for 0:**
 * In `dsi/dsi_host.c` function `dsi_link_clk_disable_6g` added checks for `performance state vote`
@@ -217,248 +218,11 @@ But most importantly, the panel lights up!
 **Panel timeout issue specific to ONLY len 8 bytes:**
 * In `dsi/dsi_host.c` search for function `static int msm_dsi_create_packet` it acts as a replacement for mipi_dsi_create_packet() since android CAF's are weird.
 
-**Complete refractor of msm_gpu_freq.c**
+**Complete refactor of msm_gpu_devfreq.c**
 * Not really much I can say here. You'll just kinda have to see for yourself.
 
-## Current Logs:
+**DRM Scheduler backport (this is what got the GPU rendering):**
+* The 5.19 scheduler core now lives in `scheduler/` (`sched_main.c`, `sched_entity.c`, `sched_fence.c` + `include/drm/gpu_scheduler.h`).
+* 4.19's in-tree `drm_sched` was too old to map the modern engine job model onto — it would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. Backporting the whole thing is what took the GPU from "idles but doesn't work" to *actually* rendering.
 
-### MDSS/DPU/DSI/DSI_PHY and Panel pipeline:
-```sh
-[   29.087615] panel_samsung_sofef00: loading out-of-tree module taints kernel.
-[   29.096408] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
-[   31.067232] adreno 0.gpu: Linked as a consumer to 5040000.iommu
-[   31.076342] iommu: Adding device 0.gpu to group 38
-[   31.086819] msm-mdss ae00000.mdss: Linked as a consumer to 15000000.apps-smmu
-[   31.095842] iommu: Adding device ae00000.mdss to group 39
-[   31.194880] msm_dsi_phy ae94400.dsi-phy: Linked as a consumer to regulator.10
-[   31.205643] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
-[   31.215129] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.25
-[   31.223765] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.75
-[   31.232230] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.76
-[   31.241479] msm_dpu ae01000.mdp: bound ae94000.dsi (ops dsi_ops [msm])
-[   31.250836] adreno 0.gpu: 0.gpu supply vdd not found, using dummy regulator
-[   31.259238] adreno 0.gpu: Linked as a consumer to regulator.0
-[   31.267594] adreno 0.gpu: 0.gpu supply vddcx not found, using dummy regulator
-[   31.276000] Frequency QoS not supported on: 4.19.255...
-[   31.285520] platform 0.gmu: Linked as a consumer to 5040000.iommu
-[   31.294362] iommu: Adding device 0.gmu to group 40
-[   31.311890] platform 0.gmu: Linked as a consumer to genpd:0:0.gmu
-[   31.328109] msm_dpu ae01000.mdp: bound 0.gpu (ops a3xx_ops [msm])
-[   31.345715] [drm:dpu_kms_hw_init:1132] dpu hardware revision:0x40000000
-[   31.362135] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
-[   31.370457] [drm] No driver support for vblank timestamp query.
-[   31.378737] [drm] Setting vblank_disable_immediate to false because get_vblank_timestamp == NULL
-[   31.388191] [drm] Initialized msm 1.9.0 20130625 for ae01000.mdp on minor 0
-[   31.396556] msmdrm: Evicting conflicting fb at 0x000000009d400000 (size: 36864 KB)
-[   31.404794] checking generic (9d400000 2400000) vs hw (9d400000 2400000)
-[   31.404800] fb: switching to msmdrmfb from simple
-[   31.413140] Console: switching to colour dummy device 80x25
-[   31.483130] Console: switching to colour frame buffer device 135x142
-[   31.509662] msm_dpu ae01000.mdp: fb0: msmdrmfb frame buffer device
-```
-
-### GPU/GMU bring-up pipeline:
-```sh
-[   47.021251] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_sqe.fw from new location
-[   47.021913] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_gmu.bin from new location
-```
-
-### GPU/GMU during actual rendering (cleaned up log):
-```
-[   58.580280] Unable to handle kernel NULL pointer dereference at virtual address 0000000000000000
-[   58.580353] Mem abort info:
-[   58.580377]   ESR = 0x86000005
-[   58.580402]   Exception class = IABT (current EL), IL = 32 bits
-[   58.580439]   SET = 0, FnV = 0
-[   58.580461]   EA = 0, S1PTW = 0
-[   58.580488] user pgtable: 4k pages, 39-bit VAs, pgdp = 000000006be0c58b
-[   58.580528] [0000000000000000] pgd=0000000000000000, pud=0000000000000000
-[   58.580575] Internal error: Oops: 86000005 [#1] PREEMPT SMP
-[   58.580611] Modules linked in: msm(OE) panel_samsung_sofef00(OE)
-[   58.580655] Process ring0 (pid: 653, stack limit = 0x00000000011b169f)
-[   58.580700] CPU: 5 PID: 653 Comm: ring0 Tainted: G           OE     4.19.325-cip128-st12-notfound-g00a7a9fa72f4 #242
-[   58.580758] Hardware name: Qualcomm Technologies, Inc. SDM845 v2.1 MTP PVT (DT)
-[   58.580803] pstate: 60c00005 (nZCv daif +PAN +UAO)
-[   58.580833] pc :           (null)
-[   58.580869] lr : drm_sched_entity_pop_job+0x48/0x26c
-[   58.580901] sp : ffffff8018a53d60
-...
-[   58.581436] Call trace:
-[   58.581456]            (null)
-[   58.581480]  drm_sched_main+0x16c/0x2c0
-[   58.581512]  kthread+0x140/0x1fc
-[   58.581540]  ret_from_fork+0x10/0x18
-[   58.581569] Code: bad PC value
-[   58.581595] ---[ end trace 152ce7bf58fcd4de ]---
-[   58.581626] Kernel panic - not syncing: Fatal exception
-...
-```
-
-
-### Modetest (when GMU/GPU is skipped) and state
-
-```sh
-[root@localhost ~]# modetest -M msm -M msm -c
-opened device `MSM Snapdragon DRM` on driver `msm` (version 1.9.0 at 20130625)
-Connectors:
-id      encoder status          name            size (mm)       modes   encoders
-29      28      connected       DSI-1           68x145          1       28
-  modes:
-        index name refresh (Hz) hdisp hss hse htot vdisp vss vse vtot
-  #0 1080x2280 60.00 1080 1192 1208 1244 2280 2316 2324 2336 174359 flags: ; type: preferred, driver
-  props:
-        1 EDID:
-                flags: immutable blob
-                blobs:
-
-                value:
-        2 DPMS:
-                flags: enum
-                enums: On=0 Standby=1 Suspend=2 Off=3
-                value: 0
-        5 link-status:
-                flags: enum
-                enums: Good=0 Bad=1
-                value: 0
-        6 non-desktop:
-                flags: immutable range
-                values: 0 1
-                value: 0
-
-[root@localhost ~]# cat /sys/kernel/debug/dri/0/state
-plane[30]: plane-0
-        crtc=crtc-0
-        fb=81
-                allocated by = [fbcon]
-                refcount=2
-                format=XR24 little-endian (0x34325258)
-                modifier=0x0
-                size=1080x2280
-                layers:
-                        size[0]=1080x2280
-                        pitch[0]=4352
-                        offset[0]=0
-                        obj[0]:
-                                name=0
-                                refcount=1
-                                start=00000000
-                                size=9924608
-                                imported=no
-        crtc-pos=1080x2280+0+0
-        src-pos=1080.000000x2280.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=1
-        sspp=sspp_0
-        multirect_mode=none
-        multirect_index=solo
-plane[36]: plane-1
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_1
-        multirect_mode=none
-        multirect_index=solo
-plane[42]: plane-2
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_2
-        multirect_mode=none
-        multirect_index=solo
-plane[48]: plane-3
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_3
-        multirect_mode=none
-        multirect_index=solo
-plane[54]: plane-4
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_8
-        multirect_mode=none
-        multirect_index=solo
-plane[60]: plane-5
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_9
-        multirect_mode=none
-        multirect_index=solo
-plane[66]: plane-6
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_10
-        multirect_mode=none
-        multirect_index=solo
-plane[72]: plane-7
-        crtc=(null)
-        fb=0
-        crtc-pos=0x0+0+0
-        src-pos=0.000000x0.000000+0.000000+0.000000
-        rotation=1
-        normalized-zpos=0
-        color-encoding=ITU-R BT.601 YCbCr
-        color-range=YCbCr limited range
-        stage=0
-        sspp=sspp_11
-        multirect_mode=none
-        multirect_index=solo
-crtc[78]: crtc-0
-        enable=1
-        active=1
-        planes_changed=1
-        mode_changed=0
-        active_changed=0
-        connectors_changed=0
-        color_mgmt_changed=0
-        plane_mask=1
-        connector_mask=1
-        encoder_mask=1
-        mode: 0:"1080x2280" 60 174359 1080 1192 1208 1244 2280 2316 2324 2336 0x48 0x0
-        lm[0]=0
-        ctl[0]=2
-connector[29]: DSI-1
-        crtc=crtc-0
-```
+**Random Error(atleast for me):** Doing `CTRL + C` on kmscube for example hangs the device and causes a silent panic.. `pstore` doesn't show any logs either.

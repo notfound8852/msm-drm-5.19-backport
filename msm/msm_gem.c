@@ -18,7 +18,7 @@
 #include "msm_gpu.h"
 #include "msm_mmu.h"
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 17, 0)
-#include "shims/reservation.h"
+#include "compat_and_shims/reservation.h"
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #include <linux/dma-map-ops.h>

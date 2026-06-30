@@ -1,6 +1,7 @@
 # MSM DRM/KMS 5.19 Backport for Downstream Kernels
 
-This project provides a comprehensive backport of the **Qualcomm MSM DRM/KMS driver from Linux 5.19** to the **Downstream kernel bases**. 
+This project provides a comprehensive backport of the **Qualcomm MSM DRM/KMS driver from Linux 5.19** to the **Downstream kernel bases**.
+**Note:** 4.19 is just the floor. In the future this module will support >=4.19 kernel versions as well.
 
 It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Adreno) on legacy vendor kernels.
 
@@ -40,13 +41,6 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 *	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
 
-### ⚠️ Critical insight:
-This one is a very specific Android quirk.
-On the Snapdragon 845 platform, **all DSI command execution utilizes the Command-DMA engine**, regardless of whether the payload is a short 4-byte or a long 8-byte write.
-
-#### Quick Explanation:
-* **Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
-
 ### ⚠️ The CAF Header Inversion Quirk (Command-DMA Timeout Fix)
 On Qualcomm Snapdragon platforms, **all DSI command execution utilizes the Command-DMA engine**, regardless of packet length (short 4-byte writes vs. long multi-byte writes). 
 
@@ -63,11 +57,12 @@ The upstream 5.19 MSM driver relies on standard Linux core definitions where the
 | **Android CAF 4.19** | Word Count LSB / Param 0 | Word Count MSB / Param 1 | Data ID (DI) |
 
 Because the upstream `dsi_cmd_dma_add()` packed these bytes into the MSM hardware command DWORD assuming mainline ordering, the CAF core helper scrambled the layout. Short writes survived because the DSI engine ignores the Word Count fields for fixed-length short packets. Long writes, however, received a giant garbage Word Count value (e.g., `0x3900`), causing the DMA hardware engine to loop indefinitely waiting for a massive payload that didn't exist.
-It's really understanding the problem because the fix is trivial. All it takes is a simple shim (`msm_dsi_create_packet`) which creates the packet as intended without needing to modify core CAF function.
+It's really about understanding the problem, because the fix itself is trivial. All it takes is a simple shim (`msm_dsi_create_packet`) which creates the packet as intended without needing to modify core CAF function.
 
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
 *	**GMU Register Access:** Resolved initial crashes during `gmu_resume` (gmu_read/gmu_write are now functional).
+*	**DRM Scheduler:** Backported the 5.19 GPU scheduler core into `scheduler/` so the modern engine job model maps cleanly onto the 4.19 base. This is what took the GPU from "idles forever" to actually executing the ringbuffer and rendering.
 ### ⚠️ The Zap Shader / Secure Pipeline Alignment Block
 During initial attempts to bring up the engine, the command processor would always fail on a hardware packet submission, throwing a CP opcode error (`possible opcode=0x70E60001`) and caused a time out on the ringbuffer execution.
 
@@ -75,7 +70,7 @@ During initial attempts to bring up the engine, the command processor would alwa
 The upstream driver issues `CP_SET_SECURE_MODE` instructions assuming the GPU's hardware secure pipeline state is managed appropriately. Downstream, this state completely relies on the TrustZone generic Peripheral Image Loader (`qcom,pil-tz-generic`) authenticating the secure Zap shader firmware layer. If the GPU peripheral node is disabled during hardware handoff, the secure pipeline drops into an unauthenticated state, causing the hardware to flat-out reject standard kernel initialization sequences.
 
 #### The Fix
-We ensured the platform's peripheral image loader remains fully operational at boot rather than dropping or stubbing it out. Leaving the secure hardware node enabled in the device tree blobs allows the trustzone layer to safely probe PAS-ID 13 (or whatever ID it maybe in your case) and execute early authentication.
+We ensured the platform's peripheral image loader remains fully operational at boot rather than dropping or stubbing it out. Leaving the secure hardware node enabled in the device tree blobs allows the TrustZone layer to safely probe PAS-ID 13 (or whatever ID it may be in your case) and execute early authentication.
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -87,10 +82,12 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core hardware layer is functional, meaning the panel lights up and the GPU successfully initializes and goes into IDLE.
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core hardware layer is functional — the panel lights up, the GPU spins up out of idle, and it **renders**: `kmscube --gears` holds a spinning cube at a locked **60 fps**. 🙃
+
+➡️ See **[SHOWCASE.md](SHOWCASE.md)** for the `modetest` / `kmscube --gears` logs, bring-up `dmesg`, and the demo.
 
 *   **Probing:** Driver probes and initializes fully.
-*   **Display:** `modetest` works. (`msm_gpu_devfreq.c` was completely refractored.) Early framebuffer hand-off works and the panel does infact light up.
+*   **Display:** `modetest` works. (`msm_gpu_devfreq.c` was completely refactored.) Early framebuffer hand-off works and the panel does in fact light up.
 
 ---
 
@@ -113,9 +110,9 @@ This backport includes several targeted fixes to address downstream-specific beh
 ---
 
 *   **IOMMU:** Translation and context bank allocation are stable.
-*	**GPU:** GMU register access and `gmu_resume` are functional. However, a ringbuffer drain timeout occurs during GPU hardware initialization (`adreno_load_gpu` failing with `-22`), leading to a Command Processor (CP) opcode error (`possible opcode=0x70E60001`) and a subsequent kernel NULL pointer dereference panic during hangcheck recovery.
-* **GPU & GMU Core:** The GMU successfully handles power sequences, register domains are stable, and firmware validation executes directly into a clean engine idle loop.
-* **DRM Scheduler:** **CURRENT HARD STOP.** Now that the GPU hardware successfully spins up, the software job subsystem triggers an immediate kernel panic inside the DRM scheduler. This requires a structural rewrite or backport of the scheduler core to safely map modern 5.19 engine tasks onto legacy downstream 4.19 thread behaviors.
+*	**GPU & GMU Core:** GMU register access and `gmu_resume` are functional. The GMU successfully handles its power sequences, register domains are stable, firmware validation passes, and the GPU spins up directly into a clean engine idle loop.
+* **DRM Scheduler:** **BACKPORTED & WORKING.** The 5.19 scheduler core now lives in `scheduler/` (`sched_main.c`, `sched_entity.c`, `sched_fence.c`), replacing 4.19's — which was too old to map the modern engine job model onto and would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. With it in place the GPU drains the ringbuffer and renders for real: `kmscube --gears` spins a cube at a locked **60 fps**. 🙃
+* **Rendering:** Working. The full chain — GPU submit → DRM scheduler → ringbuffer → atomic KMS flip — is live end to end.
 
 
 ## 🛠️ Integration
@@ -125,6 +122,18 @@ This backport includes several targeted fixes to address downstream-specific beh
 	- You can use mine as a reference check: `dtbs/sdm845-oneplus-common.dtsi`-that's the main backport. `dtbs/sdm845-oneplus-enchilada.dtsi` and `dtbs/sdm845-oneplus-fajita.dtsi` build upon that.
 	- **Quick FYI:** The `dtbs` folder in this repo is direct copy of the one from EdwinMoq's kernel repo.
 3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
+4. For the 5.19 scheduler add these configs to the bottom of the following files, `drivers/gpu/drm/Makefile`:
+```
+obj-$(CONFIG_DRM_SCHED) += scheduler/
+```
+Additionally, you might also need to add this to `drivers/gpu/drm/Kconfig`:
+```
+config DRM_SCHED
+    tristate "DRM GPU Scheduler"
+    depends on DRM
+```
 
 ## 📄 Technical Documentation
 See [msm/shims/NOTE.md](msm/shims/NOTE.md) for a deep dive into specific implementation hacks, SMMU fault analysis, and comparison with 4.19/5.4/5.18 MSM drivers along with how to get genpd power-domains to work.
+
+See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.

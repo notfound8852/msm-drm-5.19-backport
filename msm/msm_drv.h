@@ -30,7 +30,7 @@
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_gem.h>
 
-#include "shims/drm_shim.h"
+#include "drm/drm_shim.h"
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <drm/drm_probe_helper.h>
@@ -43,16 +43,16 @@
 #include <drm/display/drm_dsc.h>
 #include <drm/msm_drm.h>
 #else
-#include "shims/backported/drm_dsc.h"
+#include "drm/display/drm_dsc.h"
 #endif
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 17, 0)
-#include "shims/uapi_msm_drm.h"
-#include "shims/devm_compat.h"
+#include "uapi/uapi_msm_drm.h"
+#include "compat_and_shims/devm_compat.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-#include "shims/msm_compat_clk.h"
-#include "shims/pm_opp.h"
+#include "compat_and_shims/msm_compat_clk.h"
+#include "linux/pm_opp.h"
 #endif
 
 struct msm_kms;

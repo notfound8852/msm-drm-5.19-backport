@@ -15,7 +15,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #include <linux/adreno-smmu-priv.h>
 #else
-#include "shims/adreno-smmu-priv.h"
+#include "linux/adreno-smmu-priv.h"
 #endif
 #include <linux/clk.h>
 #include <linux/devfreq.h>
@@ -23,12 +23,12 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 #include <linux/interconnect.h>
 #else
-#include "shims/interconnector.h"
+#include "linux/interconnector.h"
 #endif
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 14, 0)
-#include <linux/pm_qos.h> // patch
+#include <linux/pm_qos.h>
 #endif
 
 struct msm_gem_submit;

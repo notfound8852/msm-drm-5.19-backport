@@ -20,7 +20,6 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
 
-#include "../../shims/drm_shim.h"
 #include "dpu_kms.h"
 #include "dpu_hw_lm.h"
 #include "dpu_hw_ctl.h"

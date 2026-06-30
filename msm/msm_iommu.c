@@ -7,12 +7,12 @@
 #include "msm_drv.h"
 #include "msm_mmu.h"
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-#include "shims/iommu_shims.h"
+#include "compat_and_shims/iommu_shims.h"
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 #include <linux/adreno-smmu-priv.h>
 #else
-#include "shims/adreno-smmu-priv.h"
+#include "linux/adreno-smmu-priv.h"
 #endif
 
 struct msm_iommu {
