@@ -148,6 +148,15 @@ struct msm_gem_object {
 	struct drm_mm_node *vram_node;
 
 	char name[32]; /* Identifier to print for the debugfs files */
+
+	/*
+	 * Opaque per-bo metadata blob, set/queried by userspace via
+	 * MSM_INFO_SET_METADATA / MSM_INFO_GET_METADATA. Used by Mesa to
+	 * stash tiling/modifier info; the kernel never interprets it.
+	 * Protected by the gem obj lock.
+	 */
+	void *metadata;
+	u32 metadata_size;
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
     /* normally (resv == &_resv) except for imported bo's */
     struct reservation_object *resv; // added patch

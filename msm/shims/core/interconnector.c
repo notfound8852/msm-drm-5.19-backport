@@ -28,9 +28,23 @@ int of_icc_get(struct device *dev,
 			goto err_rollback;
 		}
 
+		/*
+		 * active_only = true.
+		 *
+		 * Mainline icc consumers (GPU/display) apply a vote while the
+		 * device is powered and drop it on suspend; they never expect a
+		 * persistent "sleep set" vote. Registering dual-context
+		 * (active_only=false) makes every msm_bus_scale_update_bw() -
+		 * including the (0,0) removal in dev_pm_opp_set_opp(NULL) on
+		 * runtime suspend - commit the sleep/wake set via
+		 * rpmh_write_batch(). On this SoC that batch commit times out
+		 * during GPU collapse and rpmh_rsc_debug() does a BUG().
+		 * Active-only keeps updates on the active TCS (rpmh_write) and
+		 * avoids that path.
+		 */
 		paths[i]->handle = msm_bus_scale_register(src, dst,
 							  (char *)dev_name(dev),
-							  false);
+							  true);
 		if (!paths[i]->handle) {
 			kfree(paths[i]);
 			paths[i] = NULL;

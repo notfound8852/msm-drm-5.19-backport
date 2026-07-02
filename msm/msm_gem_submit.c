@@ -360,8 +360,17 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if (ret)
 			return ret;
 
-		/* exclusive fences must be ordered */
-		if (no_implicit && !write)
+		/*
+		 * Skip implicit sync when userspace opts out, either for the
+		 * whole submit (MSM_SUBMIT_NO_IMPLICIT) or for this specific bo
+		 * (MSM_SUBMIT_BO_NO_IMPLICIT, the path modern Mesa uses).
+		 * Writes are still ordered implicitly to avoid corruption when
+		 * the caller isn't managing exclusive access itself.
+		 *
+		 * NOTE: As far as I know this patch was introduced as late as 6.6.
+		 */
+		if ((no_implicit ||
+		     (submit->bos[i].flags & MSM_SUBMIT_BO_NO_IMPLICIT)) && !write)
 			continue;
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
 							      obj, write);

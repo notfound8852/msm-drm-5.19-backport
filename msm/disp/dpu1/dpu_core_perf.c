@@ -395,7 +395,14 @@ int dpu_core_perf_crtc_update(struct drm_crtc *crtc,
 		trace_dpu_core_perf_update_clk(kms->dev, stop_req, clk_rate);
 
 		clk_rate = min(clk_rate, kms->perf.max_core_clk_rate);
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+		if (clk_rate == 0)
+			ret = dev_pm_genpd_set_performance_state(&kms->pdev->dev, 0);
+		else
+			ret = dev_pm_opp_set_rate(&kms->pdev->dev, clk_rate);
+#else
 		ret = dev_pm_opp_set_rate(&kms->pdev->dev, clk_rate);
+#endif
 		if (ret) {
 			DPU_ERROR("failed to set core clock rate %llu\n", clk_rate);
 			return ret;

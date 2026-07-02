@@ -36,7 +36,6 @@ EGL information:
   client extensions: "EGL_EXT_device_base EGL_EXT_device_enumeration EGL_EXT_device_query EGL_EXT_platform_base EGL_KHR_client_get_all_proc_addresses EGL_EXT_client_extensions EGL_KHR_debug EGL_EXT_platform_device EGL_EXT_explicit_device EGL_EXT_platform_wayland EGL_KHR_platform_wayland EGL_EXT_platform_x11 EGL_KHR_platform_x11 EGL_EXT_platform_xcb EGL_MESA_platform_gbm EGL_KHR_platform_gbm EGL_MESA_platform_surfaceless"
   display extensions: "EGL_ANDROID_blob_cache EGL_ANDROID_native_fence_sync EGL_EXT_buffer_age EGL_EXT_config_select_group EGL_EXT_create_context_robustness EGL_EXT_image_dma_buf_import EGL_EXT_image_dma_buf_import_modifiers EGL_EXT_query_reset_notification_strategy EGL_EXT_surface_compression EGL_IMG_context_priority EGL_KHR_cl_event2 EGL_KHR_config_attribs EGL_KHR_context_flush_control EGL_KHR_create_context EGL_KHR_create_context_no_error EGL_KHR_fence_sync EGL_KHR_get_all_proc_addresses EGL_KHR_gl_colorspace EGL_KHR_gl_renderbuffer_image EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_3D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_image EGL_KHR_image_base EGL_KHR_image_pixmap EGL_KHR_no_config_context EGL_KHR_reusable_sync EGL_KHR_surfaceless_context EGL_EXT_pixel_format_float EGL_KHR_wait_sync EGL_MESA_configless_context EGL_MESA_gl_interop EGL_MESA_image_dma_buf_export EGL_MESA_query_driver EGL_MESA_x11_native_visual_id "
 ===================================
-MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22
 OpenGL ES 2.x information:
   version: "OpenGL ES 3.2 Mesa 26.1.3-arch1.2"
   shading language version: "OpenGL ES GLSL ES 3.20"
@@ -54,6 +53,20 @@ Rendered 840 frames in 14.058509 sec (59.750292 fps)
 Rendered 960 frames in 16.066528 sec (59.751555 fps)
 ...
 ```
+
+**NOTE:** I have also experiemented with sway a little bit:
+```
+[root@localhost ~]# sway
+00:00:01.996  [seatd/server.c:145] New client connected (pid: 2371, uid: 0, gid: 0)
+00:00:01.997  [seatd/seat.c:248] Added client 1 to seat0
+00:00:01.997  [seatd/seat.c:584] Opened client 1 on seat0
+00:00:00.637 [sway/config/output.c:1219] failed to execute 'swaybg' (background configuration probably not applied): No such file or directory
+dbus-update-activation-environment: error: unable to connect to D-Bus: Using X11 for dbus-daemon autolaunch was disabled at compile time, set your DBUS_SESSION_BUS_ADDRESS instead
+Failed to connect to user scope bus via local transport: No such file or directory
+Failed to connect to user scope bus via local transport: No such file or directory
+00:00:00.037 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
+```
+(The screen shows just the taskbar up at the top while the rest of the screen in black-this is an issue on my end not the driver)
 
 ---
 
