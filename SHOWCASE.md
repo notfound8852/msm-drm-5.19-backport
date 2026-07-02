@@ -66,7 +66,65 @@ Failed to connect to user scope bus via local transport: No such file or directo
 Failed to connect to user scope bus via local transport: No such file or directory
 00:00:00.037 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
 ```
-(The screen shows just the taskbar up at the top while the rest of the screen in black-this is an issue on my end not the driver)
+After installing `swaybg` the screen does show more than a pitful taskbar:
+
+<p align="center">
+  <img src="assets/sway.jpg" alt="Sway bonsai logo on the backported 5.19 MSM DRM driver" width="600">
+  <br>
+</p>
+
+
+but IMMEDIATELY I am hit with:
+```
+[   73.054870] arm-smmu 5040000.iommu: TLB sync timed out -- SMMUV2 may be deadlocked
+[   73.054884] arm-smmu 5040000.iommu: TLB sync on cb0 failed for device 5000000.gpu
+[   73.555701] arm-smmu 5040000.iommu: TLB sync timed out -- SMMUV2 may be deadlocked
+[   73.555714] arm-smmu 5040000.iommu: TLB sync on cb0 failed for device 5000000.gpu
+[   74.784182] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   74.784299] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   74.784420] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   74.784561] msm_dpu ae01000.mdp: [drm:recover_worker [msm]] *ERROR* A630: hangcheck recover!
+[   75.776169] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   75.776286] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   75.776409] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   76.768135] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   76.768252] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   76.768359] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   77.792137] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   77.792253] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   77.792360] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   78.784134] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   78.784250] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   78.784377] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   79.776134] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   79.776246] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   79.776369] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   80.768140] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   80.768253] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   80.768375] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   81.792132] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630: hangcheck detected gpu lockup rb 0!
+[   81.792244] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     completed fence: 10
+[   81.792354] msm_dpu ae01000.mdp: [drm:hangcheck_handler [msm]] *ERROR* A630:     submitted fence: 11
+[   82.656052] qcom_rpmh RSC:apps_rsc
+[   82.656069] qcom_rpmh Request: tcs-in-use:YES active_tcs=YES(2) state=2 wait_for_compl=0]
+[   82.656078] qcom_rpmh TCS=0 [ctrlr-sts:IDLE amc-mode:0x1010000 irq-sts:COMPLETED]
+[   82.656090] qcom_rpmh        CMD=0 [addr=0x50000 data=0x601e385e hdr=0x10108 sts=0x10101 enabled=1]
+[   82.656101] qcom_rpmh        CMD=1 [addr=0x5003c data=0x600f3a4f hdr=0x10108 sts=0x10101 enabled=1]
+[   82.656111] qcom_rpmh        CMD=2 [addr=0x5000c data=0x60000008 hdr=0x10108 sts=0x10101 enabled=1]
+[   82.656122] qcom_rpmh HW IRQ 37 is PENDING at GIC
+[   82.656127] qcom_rpmh Completion is NOT PENDING to finish
+[   82.656133] qcom_rpmh ERROR:Possible lockup in Linux
+```
+
+I am running sway with vulkan as the renderer and I am on Arch linux.
+```
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:253] Vulkan device: 'Turnip Adreno (TM) 630'
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:254]   Device type: 'integrated'
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:255]   Supported API version: 1.3.348
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:256]   Driver version: 26.1.3
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:344]   Driver name: turnip Mesa driver (Mesa 26.1.3-arch1.2)
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:364] Found matching Vulkan physical device: Turnip Adreno (TM) 630
+```
 
 ---
 
