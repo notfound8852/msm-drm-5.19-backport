@@ -10,12 +10,17 @@
 
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
-#include <drm/drm_syncobj.h>
 
 #include "msm_drv.h"
 #include "msm_gpu.h"
 #include "msm_gem.h"
 #include "msm_gpu_trace.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
+#include <drm/drm_syncobj.h>
+#else
+#include "include/drm/drm_syncobj.h"
+#endif
 
 /*
  * Cmdstream submission:
@@ -575,7 +580,6 @@ struct msm_submit_post_dep {
 	uint64_t point;
 	struct dma_fence_chain *chain;
 };
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
 static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
                                            struct drm_file *file,
                                            uint64_t in_syncobjs_addr,
@@ -645,90 +649,6 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 	return syncobjs;
 }
 
-#else
-static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
-                                           struct drm_file *file,
-                                           uint64_t in_syncobjs_addr,
-                                           uint32_t nr_in_syncobjs,
-                                           size_t syncobj_stride,
-                                           struct msm_ringbuffer *ring)
-{
-    struct drm_syncobj **syncobjs = NULL;
-    struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
-    int ret = 0;
-    uint32_t i, j;
-    struct dma_fence *fence;
-
-    syncobjs = kcalloc(nr_in_syncobjs, sizeof(*syncobjs),
-                       GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-    if (!syncobjs)
-        return ERR_PTR(-ENOMEM);
-
-    for (i = 0; i < nr_in_syncobjs; ++i) {
-        uint64_t address = in_syncobjs_addr + i * syncobj_stride;
-
-        if (copy_from_user(&syncobj_desc,
-                           u64_to_user_ptr(address),
-                           min(syncobj_stride,
-                               sizeof(syncobj_desc)))) {
-            ret = -EFAULT;
-            break;
-        }
-
-        /* Timeline syncobjs unsupported on this kernel */
-        if (syncobj_desc.point) {
-            ret = -EOPNOTSUPP;
-            break;
-        }
-
-        if (syncobj_desc.flags & ~MSM_SUBMIT_SYNCOBJ_FLAGS) {
-            ret = -EINVAL;
-            break;
-        }
-
-        ret = drm_syncobj_find_fence(file,
-                                     syncobj_desc.handle,
-                                     &fence);
-        if (ret)
-            break;
-
-        /*
-         * Old kernels don't support scheduler dependency tracking.
-         * Wait synchronously instead.
-         */
-        if (!dma_fence_match_context(fence,
-                                     ring->fctx->context))
-            ret = dma_fence_wait(fence, true);
-
-        dma_fence_put(fence);
-
-        if (ret)
-            break;
-
-        if (syncobj_desc.flags & MSM_SUBMIT_SYNCOBJ_RESET) {
-            syncobjs[i] =
-                drm_syncobj_find(file,
-                                 syncobj_desc.handle);
-
-            if (!syncobjs[i]) {
-                ret = -EINVAL;
-                break;
-            }
-        }
-    }
-
-    if (ret) {
-        for (j = 0; j < i; ++j) {
-            if (syncobjs[j])
-                drm_syncobj_put(syncobjs[j]);
-        }
-        kfree(syncobjs);
-        return ERR_PTR(ret);
-    }
-    return syncobjs;
-}
-#endif
-
 static void msm_reset_syncobjs(struct drm_syncobj **syncobjs,
                                uint32_t nr_syncobjs)
 {
@@ -739,7 +659,7 @@ static void msm_reset_syncobjs(struct drm_syncobj **syncobjs,
 			drm_syncobj_replace_fence(syncobjs[i], NULL);
 	}
 }
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
+
 static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
                                                        struct drm_file *file,
                                                        uint64_t syncobjs_addr,
@@ -809,61 +729,6 @@ static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
 
 	return post_deps;
 }
-#else
-static struct msm_submit_post_dep *msm_parse_post_deps(struct drm_device *dev,
-                                                       struct drm_file *file,
-                                                       uint64_t syncobjs_addr,
-                                                       uint32_t nr_syncobjs,
-                                                       size_t syncobj_stride)
-{
-    struct msm_submit_post_dep *post_deps;
-    struct drm_msm_gem_submit_syncobj syncobj_desc = {0};
-    int ret = 0;
-    uint32_t i, j;
-
-    post_deps = kmalloc_array(nr_syncobjs, sizeof(*post_deps),
-                              GFP_KERNEL | __GFP_NOWARN | __GFP_NORETRY);
-    if (!post_deps)
-        return ERR_PTR(-ENOMEM);
-
-    for (i = 0; i < nr_syncobjs; ++i) {
-        uint64_t address = syncobjs_addr + i * syncobj_stride;
-
-        if (copy_from_user(&syncobj_desc,
-                       u64_to_user_ptr(address),
-                       min(syncobj_stride, sizeof(syncobj_desc)))) {
-            ret = -EFAULT;
-            break;
-        }
-
-        /* 4.19 backport: No timelines, so point must be 0 */
-        if (syncobj_desc.flags || syncobj_desc.point) {
-            ret = -ENOTSUPP;
-            break;
-        }
-
-        post_deps[i].point = 0;
-        post_deps[i].chain = NULL; // dma_fence_chain doesn't exist in 4.19
-
-        post_deps[i].syncobj = drm_syncobj_find(file, syncobj_desc.handle);
-        if (!post_deps[i].syncobj) {
-            ret = -EINVAL;
-            break;
-        }
-    }
-
-    if (ret) {
-        for (j = 0; j < i; ++j) {
-            if (post_deps[j].syncobj)
-                drm_syncobj_put(post_deps[j].syncobj);
-        }
-        kfree(post_deps);
-        return ERR_PTR(ret);
-    }
-
-    return post_deps;
-}
-#endif
 
 static void msm_process_post_deps(struct msm_submit_post_dep *post_deps,
                                   uint32_t count, struct dma_fence *fence)
@@ -871,7 +736,6 @@ static void msm_process_post_deps(struct msm_submit_post_dep *post_deps,
 	uint32_t i;
 
 	for (i = 0; post_deps && i < count; ++i) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 		if (post_deps[i].chain) {
 			drm_syncobj_add_point(post_deps[i].syncobj,
 			                      post_deps[i].chain,
@@ -881,19 +745,6 @@ static void msm_process_post_deps(struct msm_submit_post_dep *post_deps,
 			drm_syncobj_replace_fence(post_deps[i].syncobj,
 			                          fence);
 		}
-#else
-        if (post_deps[i].chain) {
-            drm_syncobj_replace_fence(
-                post_deps[i].syncobj,
-                fence);
-
-            post_deps[i].chain = NULL;
-        } else {
-            drm_syncobj_replace_fence(
-                post_deps[i].syncobj,
-                fence);
-        }
-#endif
 	}
 }
 
