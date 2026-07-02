@@ -63,40 +63,33 @@ The display + GPU/GMU pipeline coming up clean.
 
 ### MDSS/DPU/DSI/DSI_PHY and Panel pipeline:
 ```sh
-[   29.864838] panel_samsung_sofef00: loading out-of-tree module taints kernel.
-[   29.873478] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
-[   31.657386] adreno 5000000.gpu: Linked as a consumer to 5040000.iommu
-[   31.666149] iommu: Adding device 5000000.gpu to group 38
-[   31.676413] msm-mdss ae00000.mdss: Linked as a consumer to 15000000.apps-smmu
-[   31.685188] iommu: Adding device ae00000.mdss to group 39
-[   31.698736] msm_dsi_phy ae94400.dsi-phy: Linked as a consumer to regulator.10
-[   31.709474] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
-[   31.718935] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.25
-[   31.727545] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.75
-[   31.735976] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.76
-[   31.745289] msm_dpu ae01000.mdp: bound ae94000.dsi (ops dsi_ops [msm])
-[   31.754710] adreno 5000000.gpu: 5000000.gpu supply vdd not found, using dummy regulator
-[   31.763210] adreno 5000000.gpu: Linked as a consumer to regulator.0
-[   31.771690] adreno 5000000.gpu: 5000000.gpu supply vddcx not found, using dummy regulator
-[   31.780210] Frequency QoS not supported on: 4.19.255... using direct target mode
-[   31.789599] platform 506a000.gmu: Linked as a consumer to 5040000.iommu
-[   31.798537] iommu: Adding device 506a000.gmu to group 40
-[   31.807881] platform 506a000.gmu: Linked as a consumer to genpd:0:506a000.gmu
-[   31.816834] msm_dpu ae01000.mdp: bound 5000000.gpu (ops a3xx_ops [msm])
-[   31.826492] [drm:dpu_kms_hw_init:1132] dpu hardware revision:0x40000000
-[   31.835764] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
-[   31.844353] [drm] No driver support for vblank timestamp query.
-[   31.852942] [drm] Setting vblank_disable_immediate to false because get_vblank_timestamp == NULL
-[   31.862818] [drm] Initialized msm 1.9.0 20130625 for ae01000.mdp on minor 0
-[   31.871607] msmdrm: Evicting conflicting fb at 0x000000009d400000 (size: 36864 KB)
-[   31.880270] checking generic (9d400000 2400000) vs hw (9d400000 2400000)
-[   31.880273] fb: switching to msmdrmfb from simple
-[   31.889086] kauditd_printk_skb: 1068 callbacks suppressed
-[   31.889088] Console: switching
-[   31.889091] audit: type=1400 audit(7009821.331:1080): avc:  denied  { kill } for  pid=390 comm="kworker/6:6" capability=5  scontext=u:r:kernel:s0 tcontext=u:r:kernel:s0 tclass=capability permissive=1
-[   31.889094] to colour dummy device 80x25
-[   31.959050] Console: switching to colour frame buffer device 135x142
-[   31.985435] msm_dpu ae01000.mdp: fb0: msmdrmfb frame buffer device
+[   37.640550] panel_samsung_sofef00: loading out-of-tree module taints kernel.
+[   37.649301] panel_samsung_sofef00: module verification failed: signature and/or required key missing - tainting kernel
+[   39.424103] adreno 5000000.gpu: Linked as a consumer to 5040000.iommu
+[   39.433319] iommu: Adding device 5000000.gpu to group 38
+[   39.443489] msm-mdss ae00000.mdss: Linked as a consumer to 15000000.apps-smmu
+[   39.452676] iommu: Adding device ae00000.mdss to group 39
+[   39.466510] msm_dsi_phy ae94400.dsi-phy: Linked as a consumer to regulator.10
+[   39.478618] msm_dsi ae94000.dsi: Linked as a consumer to regulator.37
+[   39.488394] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.25
+[   39.497223] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.75
+[   39.505988] panel-oneplus6 ae94000.dsi.0: Linked as a consumer to regulator.76
+[   39.515553] msm_dpu ae01000.mdp: bound ae94000.dsi (ops dsi_ops [msm])
+[   39.525240] adreno 5000000.gpu: 5000000.gpu supply vdd not found, using dummy regulator
+[   39.534035] adreno 5000000.gpu: Linked as a consumer to regulator.0
+[   39.542785] adreno 5000000.gpu: 5000000.gpu supply vddcx not found, using dummy regulator
+[   39.551611] Frequency QoS not supported on: 4.19.255... using direct target mode
+[   39.561228] platform 506a000.gmu: Linked as a consumer to 5040000.iommu
+[   39.570491] iommu: Adding device 506a000.gmu to group 40
+[   39.580183] platform 506a000.gmu: Linked as a consumer to genpd:0:506a000.gmu
+[   39.589364] msm_dpu ae01000.mdp: bound 5000000.gpu (ops a3xx_ops [msm])
+[   39.599262] [drm:dpu_kms_hw_init:1132] dpu hardware revision:0x40000000
+[   39.608710] [drm] Supports vblank timestamp caching Rev 2 (21.10.2013).
+[   39.617401] [drm] Driver supports precise vblank timestamp query.
+[   39.627233] [drm] Initialized msm 1.9.0 20130625 for ae01000.mdp on minor 0
+[   39.635996] msmdrm: Evicting conflicting fb at 0x000000009d400000 (size: 36864 KB)
+[   39.644580] checking generic (9d400000 2400000) vs hw (9d400000 2400000)
+[   39.644587] fb: switching to msmdrmfb from simple
 ```
 
 ### GPU/GMU bring-up pipeline:

@@ -218,12 +218,20 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 	return drm_crtc_add_crc_entry(crtc, true,
 			drm_crtc_accurate_vblank_count(crtc), crcs);
 }
-
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,
 					   ktime_t *stime, ktime_t *etime,
 					   const struct drm_display_mode *mode)
+#else
+/* This is now Hooked into msm_drv.c */
+bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+					   bool in_vblank_irq,
+					   int *vpos, int *hpos,
+					   ktime_t *stime, ktime_t *etime,
+					   const struct drm_display_mode *mode)
+#endif
 {
 	unsigned int pipe = crtc->index;
 	struct drm_encoder *encoder;
@@ -1871,7 +1879,6 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.disable_vblank = msm_crtc_disable_vblank,
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
-    // TODO: FIX THIS FOR LOVE OF GOD AND MAKE A DOWNSTREAM ALTERNATIVE.
 #endif
 	.get_vblank_counter = dpu_crtc_get_vblank_counter,
 };
@@ -1884,7 +1891,6 @@ static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
 	.atomic_flush = dpu_crtc_atomic_flush,
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	.get_scanout_position = dpu_crtc_get_scanout_position,
-    // TODO: FIX THIS FOR LOVE OF GOD AND MAKE A DOWNSTREAM ALTERNATIVE.
 #endif
 };
 

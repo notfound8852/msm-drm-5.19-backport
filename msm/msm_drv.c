@@ -77,6 +77,37 @@ static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+extern bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+                       bool in_vblank_irq,
+                       int *vpos, int *hpos,
+                       ktime_t *stime, ktime_t *etime,
+                       const struct drm_display_mode *mode);
+
+static bool msm_driver_get_scanout_position(struct drm_device *dev, unsigned int pipe,
+					    bool in_vblank_irq, int *vpos, int *hpos,
+					    ktime_t *stime, ktime_t *etime,
+					    const struct drm_display_mode *mode)
+{
+	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
+
+	if (!crtc)
+		return false;
+
+	return dpu_crtc_get_scanout_position(crtc, in_vblank_irq, vpos, hpos,
+					     stime, etime, mode);
+}
+
+static bool msm_driver_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
+					    int *max_error, ktime_t *vblank_time,
+					    bool in_vblank_irq)
+{
+	return drm_calc_vbltimestamp_from_scanoutpos(dev, pipe, max_error,
+						     vblank_time, in_vblank_irq);
+}
+
+#endif
+
 static irqreturn_t msm_irq(int irq, void *arg)
 {
 	struct drm_device *dev = arg;
@@ -997,6 +1028,10 @@ static struct drm_driver msm_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+	.get_scanout_position = msm_driver_get_scanout_position,
+	.get_vblank_timestamp = msm_driver_get_vblank_timestamp,
+#endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
     .gem_free_object_unlocked = msm_gem_free_object,
     .gem_prime_pin      = msm_gem_prime_pin,

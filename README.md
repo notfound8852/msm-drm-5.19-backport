@@ -41,36 +41,10 @@ The core of this project is a sophisticated compatibility layer that bridges the
 *   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing robust IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
 *	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff.
 
-### ⚠️ The CAF Header Inversion Quirk (Command-DMA Timeout Fix)
-On Qualcomm Snapdragon platforms, **all DSI command execution utilizes the Command-DMA engine**, regardless of packet length (short 4-byte writes vs. long multi-byte writes). 
-
-The CPU writes the packet to system RAM, maps it via the Display SMMU domain over the high-speed AXI interconnect bus (`DISP_CC_MDSS_AXI`), and tells the DMA engine to pull it. The driver then waits for a hardware interrupt signaling completion.
-
-During testing, short writes succeeded, but long writes hit an immediate, unrecoverable `-ETIMEDOUT` hang (`STATUS0` stuck at `CMD_DMA_BUSY`). 
-
-#### The Root Cause: Mainline vs. Android CAF Array Layout
-The upstream 5.19 MSM driver relies on standard Linux core definitions where the MIPI DSI header bytes are arranged sequentially starting at index `0`. However, downstream Android CAF kernels **flipped the byte ordering** of the packet header inside `mipi_dsi_create_packet()`:
-
-| Kernel Tree | `header[0]` | `header[1]` | `header[2]` |
-| :--- | :--- | :--- | :--- |
-| **Linus Mainline(Inclusive of 4.19)** | Data ID (DI) | Word Count LSB / Param 0 | Word Count MSB / Param 1 |
-| **Android CAF 4.19** | Word Count LSB / Param 0 | Word Count MSB / Param 1 | Data ID (DI) |
-
-Because the upstream `dsi_cmd_dma_add()` packed these bytes into the MSM hardware command DWORD assuming mainline ordering, the CAF core helper scrambled the layout. Short writes survived because the DSI engine ignores the Word Count fields for fixed-length short packets. Long writes, however, received a giant garbage Word Count value (e.g., `0x3900`), causing the DMA hardware engine to loop indefinitely waiting for a massive payload that didn't exist.
-It's really about understanding the problem, because the fix itself is trivial. All it takes is a simple shim (`msm_dsi_create_packet`) which creates the packet as intended without needing to modify core CAF function.
-
 ### GPU (Adreno 630 / A6xx)
 *   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
 *	**GMU Register Access:** Resolved initial crashes during `gmu_resume` (gmu_read/gmu_write are now functional).
 *	**DRM Scheduler:** Backported the 5.19 GPU scheduler core into `scheduler/` so the modern engine job model maps cleanly onto the 4.19 base. This is what took the GPU from "idles forever" to actually executing the ringbuffer and rendering.
-### ⚠️ The Zap Shader / Secure Pipeline Alignment Block
-During initial attempts to bring up the engine, the command processor would always fail on a hardware packet submission, throwing a CP opcode error (`possible opcode=0x70E60001`) and caused a time out on the ringbuffer execution.
-
-#### The Root Cause
-The upstream driver issues `CP_SET_SECURE_MODE` instructions assuming the GPU's hardware secure pipeline state is managed appropriately. Downstream, this state completely relies on the TrustZone generic Peripheral Image Loader (`qcom,pil-tz-generic`) authenticating the secure Zap shader firmware layer. If the GPU peripheral node is disabled during hardware handoff, the secure pipeline drops into an unauthenticated state, causing the hardware to flat-out reject standard kernel initialization sequences.
-
-#### The Fix
-We ensured the platform's peripheral image loader remains fully operational at boot rather than dropping or stubbing it out. Leaving the secure hardware node enabled in the device tree blobs allows the TrustZone layer to safely probe PAS-ID 13 (or whatever ID it may be in your case) and execute early authentication.
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -82,7 +56,8 @@ This backport includes several targeted fixes to address downstream-specific beh
 
 ## Current Status:
 
-**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core hardware layer is functional — the panel lights up, the GPU spins up out of idle, and it **renders**: `kmscube --gears` holds a spinning cube at a locked **60 fps**. 🙃
+**NOTE:** Do NOT expect it to **just work** unless you are on a high enough kernel version. The core hardware layer is functional — the panel lights up, the GPU spins up out of idle, and it **renders**: `kmscube --gears` at a locked **60 fps** BUT I still wanna make this very clear:
+**This is a Work in progress.**
 
 ➡️ See **[SHOWCASE.md](SHOWCASE.md)** for the `modetest` / `kmscube --gears` logs, bring-up `dmesg`, and the demo.
 
@@ -134,6 +109,5 @@ config DRM_SCHED
 ```
 
 ## 📄 Technical Documentation
-See [msm/shims/NOTE.md](msm/shims/NOTE.md) for a deep dive into specific implementation hacks, SMMU fault analysis, and comparison with 4.19/5.4/5.18 MSM drivers along with how to get genpd power-domains to work.
-
+See [setup_and_fixes.md](setup_and_fixes.md) for a deep dive into specific implementation hacks and SMMU fault analysis along with how to get genpd power-domains to work.
 See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.
