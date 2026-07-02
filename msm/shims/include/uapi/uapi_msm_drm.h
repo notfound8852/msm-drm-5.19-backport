@@ -138,6 +138,9 @@ struct drm_msm_gem_new {
 #define MSM_INFO_SET_NAME	0x02   /* set the debug name (by pointer) */
 #define MSM_INFO_GET_NAME	0x03   /* get debug name, returned by pointer */
 #define MSM_INFO_SET_IOVA	0x04   /* set the iova, passed by value */
+#define MSM_INFO_GET_FLAGS	0x05   /* get the MSM_BO_x flags, returned by value */
+#define MSM_INFO_SET_METADATA	0x06   /* set userspace metadata (by pointer) */
+#define MSM_INFO_GET_METADATA	0x07   /* get userspace metadata (by pointer) */
 
 struct drm_msm_gem_info {
 	__u32 handle;         /* in */
@@ -221,10 +224,12 @@ struct drm_msm_gem_submit_cmd {
 #define MSM_SUBMIT_BO_READ             0x0001
 #define MSM_SUBMIT_BO_WRITE            0x0002
 #define MSM_SUBMIT_BO_DUMP             0x0004
+#define MSM_SUBMIT_BO_NO_IMPLICIT      0x0008 /* disable implicit sync for this bo */
 
 #define MSM_SUBMIT_BO_FLAGS            (MSM_SUBMIT_BO_READ | \
 					MSM_SUBMIT_BO_WRITE | \
-					MSM_SUBMIT_BO_DUMP)
+					MSM_SUBMIT_BO_DUMP | \
+					MSM_SUBMIT_BO_NO_IMPLICIT)
 
 struct drm_msm_gem_submit_bo {
 	__u32 flags;          /* in, mask of MSM_SUBMIT_BO_x */

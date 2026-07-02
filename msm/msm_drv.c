@@ -758,6 +758,89 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
 
+static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
+		__user void *metadata, u32 metadata_size)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	void *buf, *new;
+	int ret;
+
+	/* Impose a moderate upper bound on metadata size: */
+	if (metadata_size > 128)
+		return -EOVERFLOW;
+
+	/* Copy in outside of the gem obj lock (which the shrinker takes): */
+	buf = memdup_user(metadata, metadata_size);
+	if (IS_ERR(buf))
+		return PTR_ERR(buf);
+
+	ret = msm_gem_lock_interruptible(obj);
+	if (ret)
+		goto out;
+
+	new = krealloc(msm_obj->metadata, metadata_size, GFP_KERNEL);
+	if (!new && metadata_size) {
+		msm_gem_unlock(obj);
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	msm_obj->metadata = new;
+	msm_obj->metadata_size = metadata_size;
+	memcpy(msm_obj->metadata, buf, metadata_size);
+
+	msm_gem_unlock(obj);
+
+out:
+	kfree(buf);
+	return ret;
+}
+
+static int msm_ioctl_gem_info_get_metadata(struct drm_gem_object *obj,
+		__user void *metadata, u32 *metadata_size)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	void *buf = NULL;
+	u32 len;
+	int ret;
+
+	ret = msm_gem_lock_interruptible(obj);
+	if (ret)
+		return ret;
+
+	len = msm_obj->metadata_size;
+
+	/*
+	 * A NULL user pointer, or one whose buffer is too small, is treated as
+	 * a size query: report the required size and (for the too-small case)
+	 * fail so userspace can retry with a big enough buffer.
+	 */
+	if (!metadata || *metadata_size < len) {
+		bool too_small = metadata && (*metadata_size < len);
+
+		*metadata_size = len;
+		msm_gem_unlock(obj);
+		return too_small ? -EINVAL : 0;
+	}
+
+	if (len) {
+		buf = kmemdup(msm_obj->metadata, len, GFP_KERNEL);
+		if (!buf) {
+			msm_gem_unlock(obj);
+			return -ENOMEM;
+		}
+	}
+	*metadata_size = len;
+
+	msm_gem_unlock(obj);
+
+	if (len && copy_to_user(metadata, buf, len))
+		ret = -EFAULT;
+
+	kfree(buf);
+	return ret;
+}
+
 static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
@@ -773,12 +856,15 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 	case MSM_INFO_GET_OFFSET:
 	case MSM_INFO_GET_IOVA:
 	case MSM_INFO_SET_IOVA:
+	case MSM_INFO_GET_FLAGS:
 		/* value returned as immediate, not pointer, so len==0: */
 		if (args->len)
 			return -EINVAL;
 		break;
 	case MSM_INFO_SET_NAME:
 	case MSM_INFO_GET_NAME:
+	case MSM_INFO_SET_METADATA:
+	case MSM_INFO_GET_METADATA:
 		break;
 	default:
 		return -EINVAL;
@@ -799,6 +885,18 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 		break;
 	case MSM_INFO_SET_IOVA:
 		ret = msm_ioctl_gem_info_set_iova(dev, file, obj, args->value);
+		break;
+	case MSM_INFO_GET_FLAGS:
+		/* Hide internal kernel-only flags, matching upstream: */
+		args->value = msm_obj->flags & MSM_BO_FLAGS;
+		break;
+	case MSM_INFO_SET_METADATA:
+		ret = msm_ioctl_gem_info_set_metadata(
+				obj, u64_to_user_ptr(args->value), args->len);
+		break;
+	case MSM_INFO_GET_METADATA:
+		ret = msm_ioctl_gem_info_get_metadata(
+				obj, u64_to_user_ptr(args->value), &args->len);
 		break;
 	case MSM_INFO_SET_NAME:
 		/* length check should leave room for terminating null: */
@@ -1019,6 +1117,9 @@ static struct drm_driver msm_driver = {
 				DRIVER_RENDER |
 				DRIVER_ATOMIC |
 				DRIVER_MODESET |
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+				DRIVER_PRIME |
+#endif
 				DRIVER_SYNCOBJ,
 	.open               = msm_open,
 	.postclose           = msm_postclose,
@@ -1034,6 +1135,8 @@ static struct drm_driver msm_driver = {
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
     .gem_free_object_unlocked = msm_gem_free_object,
+    .gem_prime_export   = drm_gem_prime_export,
+	.gem_prime_import   = drm_gem_prime_import,
     .gem_prime_pin      = msm_gem_prime_pin,
     .gem_prime_unpin    = msm_gem_prime_unpin,
     .gem_prime_get_sg_table = msm_gem_prime_get_sg_table,

@@ -140,6 +140,11 @@ But most importantly, the panel lights up!
 * **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
 * **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
 
+**Very Important:** The 5.19 MSM UAPI isn't hooked up properly at all! leading to stuff like this:
+```
+MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22
+```
+
 ---
 ---
 
@@ -321,6 +326,34 @@ We ensured the platform's peripheral image loader remains fully operational at b
 
 **Why?:** 4.19's in-tree `drm_sched` was too old to map the modern engine job model onto — it would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. Backporting the whole thing is what took the GPU from "idles but doesn't work" to *actually* rendering.
 
-**Random Error(atleast for me):** Doing `CTRL + C` on kmscube for example hangs the device and causes a silent panic.. `pstore` doesn't show any logs either. (maybe because of an IOCTL ?)
-
 **get_vblank_timestamp and get_scanout_position: ** For Pre 5.13 versions, the fixes are now in place. Check `msm_drv.c`, search for `msm_driver_get_scanout_position` and `msm_driver_get_vblank_timestamp`
+
+**GEM Prime:** `gem_prime_import` and `gem_prime_export` added to `msm_drv.c` in `msm_driver`
+
+**Why?** Null derefer.
+
+**MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function `submit_fence_sync` we skip sync if userspace wants to opt out..
+
+**Why?:** Modren Mesa expectations...
+
+```sway
+00:00:01.120  [seatd/server.c:145] New client connected (pid: 746, uid: 0, gid: 0)
+00:00:01.120  [seatd/seat.c:248] Added client 1 to seat0
+00:00:01.120  [seatd/seat.c:584] Opened client 1 on seat0
+00:00:00.643 [sway/config/output.c:1219] failed to execute 'swaybg' (background configuration probably not applied): No such file or directory
+MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22
+00:00:00.757 [wlr] [render/vulkan/pass.c:632] vkQueueSubmit: ERROR_DEVICE_LOST (-4)
+00:00:00.758 [sway/config/output.c:1060] Building output state for 'DSI-1' failed
+00:00:00.758 [wlr] [render/vulkan/renderer.c:625] vkQueueWaitIdle: ERROR_DEVICE_LOST (-4)
+dbus-update-activation-environment: error: unable to connect to D-Bus: Using X11 for dbus-daemon autolaunch was disabled at compile time, set your DBUS_SESSION_BUS_ADDRESS instead
+Running in chroot, ignoring command 'set-environment'
+Running in chroot, ignoring command 'import-environment'
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (Function not implemented)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+00:00:00.847 [wlr] [render/vulkan/renderer.c:1122] vkDeviceWaitIdle: ERROR_DEVICE_LOST (-4)
+00:00:00.057 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
+```
+
+**MSM_INFO_SET_METADATA:** Added this from upstream so now we can set the metadata for BO's.
+
+**Why?:** Nobody wants to see, `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
