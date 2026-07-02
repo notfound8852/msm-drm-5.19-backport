@@ -313,6 +313,7 @@ The upstream driver issues `CP_SET_SECURE_MODE` instructions assuming the GPU's 
 #### The Fix
 We ensured the platform's peripheral image loader remains fully operational at boot rather than dropping or stubbing it out. Leaving the secure hardware node enabled in the device tree blobs allows the TrustZone layer to safely probe PAS-ID 13 (or whatever ID it may be in your case) and execute early authentication.
 **NOTE:** This was the thing that got the GPU to go into idle properly.
+
 ---
 
 **DRM Scheduler backport (this is what got the GPU rendering):**
