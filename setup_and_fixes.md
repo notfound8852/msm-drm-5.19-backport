@@ -140,10 +140,9 @@ But most importantly, the panel lights up!
 * **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
 * **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
 
-**Very Important:** The 5.19 MSM UAPI isn't hooked up properly at all! leading to stuff like this:
-```
-MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22
-```
+### 🟡 Rendering:
+* **kmscube:** works, `Control + C` causes a kernel panic.
+* **Sway:** Vulkan renders to the screen but after a few seconds crashes the device. (Same `Control + C` issue here as well)
 
 ---
 ---
