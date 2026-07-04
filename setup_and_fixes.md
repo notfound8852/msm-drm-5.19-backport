@@ -140,9 +140,9 @@ But most importantly, the panel lights up!
 * **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
 * **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
 
-### 🟡 Rendering:
-* **kmscube:** works, `Control + C` causes a kernel panic.
-* **Sway:** Vulkan renders to the screen but after a few seconds crashes the device. (Same `Control + C` issue here as well)
+### 🟢 Rendering:
+* **kmscube:** Works.
+* **Sway:** Vulkan backend renderer actually renders to the screen.
 
 ---
 ---
@@ -333,7 +333,7 @@ We ensured the platform's peripheral image loader remains fully operational at b
 
 **MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function `submit_fence_sync` we skip sync if userspace wants to opt out..
 
-**Why?:** Modren Mesa expectations...
+**Why?:** Modern Mesa expectations...
 
 ```sway
 00:00:01.120  [seatd/server.c:145] New client connected (pid: 746, uid: 0, gid: 0)
