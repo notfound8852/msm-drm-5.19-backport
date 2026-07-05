@@ -210,8 +210,11 @@
 #include <drm/drm_vblank.h>
 
 #include "../../../drm_internal.h"
+
 #ifndef lockdep_assert_none_held_once
-#define lockdep_assert_none_held_once() do { } while (0)
+#define lockdep_assert_none_held_once() do {                             \
+		WARN_ON_ONCE(debug_locks && lockdep_depth(current) > 0); \
+	} while (0)
 #endif
 
 struct syncobj_wait_entry {
