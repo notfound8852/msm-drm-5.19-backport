@@ -1129,21 +1129,26 @@ static struct drm_driver msm_driver = {
 	.prime_handle_to_fd = drm_gem_prime_handle_to_fd,
 	.prime_fd_to_handle = drm_gem_prime_fd_to_handle,
 	.gem_prime_import_sg_table = msm_gem_prime_import_sg_table,
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 0, 0)
+	.gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_import	= drm_gem_prime_import,
+#endif
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
+    .gem_free_object	= msm_gem_free_object,
+    .gem_prime_export	= drm_gem_prime_export,
+	.gem_prime_import	= drm_gem_prime_import,
+    .gem_prime_pin		= msm_gem_prime_pin,
+	.gem_prime_unpin	= msm_gem_prime_unpin,
+    .gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
+    .gem_prime_vmap		= msm_gem_prime_vmap,
+    .gem_prime_vunmap	= msm_gem_prime_vunmap,
+	.gem_vm_ops			= &vm_ops,
+#endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
 	.get_scanout_position = msm_driver_get_scanout_position,
 	.get_vblank_timestamp = msm_driver_get_vblank_timestamp,
 #endif
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
-    .gem_prime_export   = drm_gem_prime_export,
-	.gem_prime_import   = drm_gem_prime_import,
-    .gem_prime_pin      = msm_gem_prime_pin,
-    .gem_prime_unpin    = msm_gem_prime_unpin,
-    .gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
-    .gem_prime_vmap     = msm_gem_prime_vmap,
-    .gem_prime_vunmap   = msm_gem_prime_vunmap,
-#endif
 	.gem_prime_mmap     = msm_gem_prime_mmap,
-    .gem_vm_ops         = &vm_ops,
 
 #ifdef CONFIG_DEBUG_FS
 	.debugfs_init       = msm_debugfs_init,

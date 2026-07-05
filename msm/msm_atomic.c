@@ -3,16 +3,17 @@
  * Copyright (C) 2014 Red Hat
  * Author: Rob Clark <robdclark@gmail.com>
  */
-
-// // #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_atomic.h>
-#include <drm/drm_atomic.h>
 #include <drm/drm_vblank.h>
 
 #include "msm_atomic_trace.h"
 #include "msm_drv.h"
 #include "msm_gem.h"
 #include "msm_kms.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 20, 0)
+#include <drm/drm_atomic_uapi.h>
+#else
+#include <drm/drm_atomic.h>
+#endif
 
 /*
  * Helpers to control vblanks while we flush.. basically just to ensure

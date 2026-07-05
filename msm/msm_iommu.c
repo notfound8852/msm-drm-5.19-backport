@@ -40,21 +40,22 @@ static int msm_iommu_pagetable_unmap(struct msm_mmu *mmu, u64 iova,
 	struct msm_iommu_pagetable *pagetable = to_pagetable(mmu);
 	struct io_pgtable_ops *ops = pagetable->pgtbl_ops;
 	size_t unmapped = 0;
-
-    size_t total = size; // added
+	size_t total = size;
 
 	/* Unmap the block one page at a time */
 	while (size) {
-//		unmapped += ops->unmap(ops, iova, 4096, NULL);
-        unmapped += ops->unmap(ops, iova, 4096);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+		unmapped += ops->unmap(ops, iova, 4096, NULL);
+#else
+		unmapped += ops->unmap(ops, iova, 4096);
+#endif
 		iova += 4096;
 		size -= 4096;
 	}
 
 	iommu_flush_iotlb_all(to_msm_iommu(pagetable->parent)->domain);
 
-//	return (unmapped == size) ? 0 : -EINVAL;
-    return (unmapped == total) ? 0 : -EINVAL;
+	return (unmapped == total) ? 0 : -EINVAL;
 }
 
 static int msm_iommu_pagetable_map(struct msm_mmu *mmu, u64 iova,
@@ -67,15 +68,17 @@ static int msm_iommu_pagetable_map(struct msm_mmu *mmu, u64 iova,
 	u64 addr = iova;
 	unsigned int i;
 
-//	for_each_sgtable_sg(sgt, sg, i) {
-    for_each_sg(sgt->sgl, sg, sgt->nents, i) {
+	for_each_sgtable_sg(sgt, sg, i) {
 		size_t size = sg->length;
 		phys_addr_t phys = sg_phys(sg);
 
 		/* Map the block one page at a time */
 		while (size) {
-//			if (ops->map(ops, addr, phys, 4096, prot, GFP_KERNEL)) {
-            if (ops->map(ops, addr, phys, 4096, prot)) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+			if (ops->map(ops, addr, phys, 4096, prot, GFP_KERNEL)) {
+#else
+			if (ops->map(ops, addr, phys, 4096, prot)) {
+#endif
 				msm_iommu_pagetable_unmap(mmu, iova, mapped);
 				return -EINVAL;
 			}
@@ -293,13 +296,11 @@ static int msm_iommu_map(struct msm_mmu *mmu, uint64_t iova,
 	size_t ret;
 
 	/* The arm-smmu driver expects the addresses to be sign extended */
+
 	if (iova & BIT_ULL(48))
 		iova |= GENMASK_ULL(63, 49);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+
 	ret = iommu_map_sgtable(iommu->domain, iova, sgt, prot);
-#else
-    ret = iommu_map_sg(iommu->domain, iova, sgt->sgl, sgt->nents, prot);
-#endif
 	WARN_ON(!ret);
 
 	return (ret == len) ? 0 : -EINVAL;

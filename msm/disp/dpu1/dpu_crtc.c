@@ -15,8 +15,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_mode.h>
-// #include <drm/drm_probe_helper.h>
-#include <drm/drm_modeset_helper.h>
 #include <drm/drm_rect.h>
 #include <drm/drm_vblank.h>
 
@@ -30,6 +28,12 @@
 #include "dpu_vbif.h"
 #include "dpu_core_perf.h"
 #include "dpu_trace.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 /* layer mixer index on dpu_crtc */
 #define LEFT_MIXER 0

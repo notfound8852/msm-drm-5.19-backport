@@ -8,14 +8,18 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_file.h>
-// #include <drm/drm_probe_helper.h>
-#include <drm/drm_modeset_helper.h>
 #include <drm/drm_writeback.h>
 #include <drm/drm_crtc_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
 #include "dpu_encoder_phys.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 struct dpu_wb_connector {
 	struct drm_writeback_connector base;

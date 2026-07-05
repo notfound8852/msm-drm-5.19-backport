@@ -14,8 +14,6 @@
 
 #include <drm/drm_crtc.h>
 #include <drm/drm_file.h>
-// #include <drm/drm_probe_helper.h>
-#include <drm/drm_modeset_helper.h>
 
 #include "msm_drv.h"
 #include "dpu_kms.h"
@@ -32,6 +30,12 @@
 #include "dpu_trace.h"
 #include "dpu_core_irq.h"
 #include "disp/msm_disp_snapshot.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 #define DPU_DEBUG_ENC(e, fmt, ...) DRM_DEBUG_ATOMIC("enc%d " fmt,\
 		(e) ? (e)->base.base.id : -1, ##__VA_ARGS__)
