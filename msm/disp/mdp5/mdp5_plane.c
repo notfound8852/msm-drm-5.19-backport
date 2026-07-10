@@ -6,13 +6,16 @@
  */
 
 #include <drm/drm_atomic.h>
-// #include <drm/drm_damage_helper.h>
-#include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_print.h>
 
 #include "mdp5_kms.h"
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_damage_helper.h>
+#else
+#include <drm/drm_atomic_helper.h>
+#endif
 
 struct mdp5_plane {
 	struct drm_plane base;

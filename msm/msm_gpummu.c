@@ -30,16 +30,20 @@ static int msm_gpummu_map(struct msm_mmu *mmu, uint64_t iova,
 {
 	struct msm_gpummu *gpummu = to_msm_gpummu(mmu);
 	unsigned idx = (iova - GPUMMU_VA_START) / GPUMMU_PAGE_SIZE;
-//	struct sg_dma_page_iter dma_iter;
-    struct scatterlist *sg;
 	unsigned prot_bits = 0;
     unsigned i, j;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+    struct sg_dma_page_iter dma_iter;
+#else
+	struct scatterlist *sg;
+#endif
 
 	if (prot & IOMMU_WRITE)
 		prot_bits |= 1;
 	if (prot & IOMMU_READ)
 		prot_bits |= 2;
-/*
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+
 	for_each_sgtable_dma_page(sgt, &dma_iter, 0) {
 		dma_addr_t addr = sg_page_iter_dma_address(&dma_iter);
 		int i;
@@ -47,14 +51,19 @@ static int msm_gpummu_map(struct msm_mmu *mmu, uint64_t iova,
 		for (i = 0; i < PAGE_SIZE; i += GPUMMU_PAGE_SIZE)
 			gpummu->table[idx++] = (addr + i) | prot_bits;
 	}
-*/
+
+#else
+
     for_each_sg(sgt->sgl, sg, sgt->nents, i) {
-        dma_addr_t addr = sg->dma_address;
-        for (j = 0; j < sg->length / GPUMMU_PAGE_SIZE; j++, idx++) {
+		dma_addr_t addr = sg_dma_address(sg);
+        for (j = 0; j < sg_dma_len(sg) / GPUMMU_PAGE_SIZE; j++, idx++) {
             gpummu->table[idx] = addr | prot_bits;
             addr += GPUMMU_PAGE_SIZE;
         }
     }
+
+#endif
+
 	/* we can improve by deferring flush for multiple map() */
 	gpu_write(gpummu->gpu, REG_A2XX_MH_MMU_INVALIDATE,
 		A2XX_MH_MMU_INVALIDATE_INVALIDATE_ALL |

@@ -338,6 +338,72 @@ fail:
 	return ret;
 }
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+int msm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
+					    struct drm_gem_object *obj,
+					    bool write)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	struct reservation_object *resv;
+	struct reservation_object_list *list;
+	struct dma_fence *fence;
+	int ret, i;
+
+	if (!msm_obj || !msm_obj->resv)
+		return 0;
+
+	resv = msm_obj->resv;
+
+	/* Exclusive fence */
+	rcu_read_lock();
+
+	fence = rcu_dereference(resv->fence_excl);
+	if (fence)
+		dma_fence_get_rcu(fence);
+
+	rcu_read_unlock();
+
+	if (fence) {
+		ret = drm_sched_job_add_dependency(job, fence);
+		if (ret) {
+			dma_fence_put(fence);
+			return ret;
+		}
+	}
+
+	/* Shared fences are only dependencies for write operations. */
+	if (!write)
+		return 0;
+
+	rcu_read_lock();
+
+	list = rcu_dereference(resv->fence);
+	if (list) {
+		for (i = 0; i < list->shared_count; i++) {
+			fence = rcu_dereference(list->shared[i]);
+			if (!fence)
+				continue;
+
+			if (!dma_fence_get_rcu(fence))
+				continue;
+
+			rcu_read_unlock();
+
+			ret = drm_sched_job_add_dependency(job, fence);
+			if (ret) {
+				dma_fence_put(fence);
+				return ret;
+			}
+
+			rcu_read_lock();
+		}
+	}
+
+	rcu_read_unlock();
+
+	return 0;
+}
+#endif
 static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 {
 	int i, ret = 0;
@@ -372,8 +438,13 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if ((no_implicit ||
 		     (submit->bos[i].flags & MSM_SUBMIT_BO_NO_IMPLICIT)) && !write)
 			continue;
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
 							      obj, write);
+#else
+		ret = msm_sched_job_add_implicit_dependencies(&submit->base,
+								  obj, write);
+#endif
 		if (ret)
 			break;
 	}

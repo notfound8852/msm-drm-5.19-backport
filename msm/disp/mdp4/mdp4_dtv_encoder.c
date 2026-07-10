@@ -5,10 +5,14 @@
  */
 
 #include <drm/drm_crtc.h>
-// #include <drm/drm_probe_helper.h>
-#include <drm/drm_modeset_helper.h>
 
 #include "mdp4_kms.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 struct mdp4_dtv_encoder {
 	struct drm_encoder base;
