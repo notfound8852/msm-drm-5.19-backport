@@ -54,8 +54,8 @@ static int msm_fbdev_mmap(struct fb_info *info, struct vm_area_struct *vma)
 	struct msm_fbdev *fbdev = to_msm_fbdev(helper);
 	struct drm_gem_object *bo = msm_framebuffer_bo(fbdev->fb, 0);
 
-//	return drm_gem_prime_mmap(bo, vma);
-    return msm_gem_mmap_obj(bo, vma);
+	return drm_gem_prime_mmap(bo, vma);
+	return 2;
 }
 
 static int msm_fbdev_create(struct drm_fb_helper *helper,

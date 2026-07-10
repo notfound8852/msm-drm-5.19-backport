@@ -737,17 +737,20 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 	return 0;
 #else
 	/*
-	 * TODO(backport): wire up implicit (reservation-object) dependencies for
-	 * < 5.16. On 4.19 drm_gem_object has no ->resv at all; msm stashes it in
-	 * msm_gem_object->resv and the fence list must be walked with the old
-	 * reservation_object_get_excl()/reservation_object_get_list() API. msm
-	 * currently drives kmscube with explicit fencing, so stub this to keep
-	 * the build green rather than half-implement the legacy path.
+	 * Legacy kernels (< 5.16) require driver-specific implementations.
+	 *
+	 * The upstream helper relies on drm_gem_object exposing a reservation
+	 * object together with the modern dma_resv iterator API. Older kernels
+	 * (including the msm 4.19 downstream tree) instead keep the reservation
+	 * object in struct msm_gem_object and use the legacy reservation_object
+	 * interfaces.
+	 *
+	 * Drivers supporting those kernels must provide their own compatibility
+	 * helper (for example msm_sched_job_add_implicit_dependencies()) rather
+	 * than using this generic implementation.
 	 */
-	(void)job;
-	(void)obj;
-	(void)write;
-	return 0;
+	WARN_ON_ONCE(1);
+	return -EOPNOTSUPP;
 #endif
 }
 EXPORT_SYMBOL(drm_sched_job_add_implicit_dependencies);

@@ -218,35 +218,6 @@ void msm_gem_put_pages(struct drm_gem_object *obj)
 	update_inactive(msm_obj);
 	msm_gem_unlock(obj);
 }
-// ported
-int msm_gem_mmap_obj(struct drm_gem_object *obj,
-        struct vm_area_struct *vma)
-{
-    struct msm_gem_object *msm_obj = to_msm_bo(obj);
-
-    vma->vm_flags &= ~VM_PFNMAP;
-    vma->vm_flags |= VM_MIXEDMAP;
-
-    if (msm_obj->flags & MSM_BO_WC) {
-        vma->vm_page_prot = pgprot_writecombine(vm_get_page_prot(vma->vm_flags));
-    } else if (msm_obj->flags & MSM_BO_UNCACHED) {
-        vma->vm_page_prot = pgprot_noncached(vm_get_page_prot(vma->vm_flags));
-    } else {
-        /*
-         * Shunt off cached objs to shmem file so they have their own
-         * address_space (so unmap_mapping_range does what we want,
-         * in particular in the case of mmap'd dmabufs)
-         */
-        fput(vma->vm_file);
-        get_file(obj->filp);
-        vma->vm_pgoff = 0;
-        vma->vm_file  = obj->filp;
-
-        vma->vm_page_prot = vm_get_page_prot(vma->vm_flags);
-    }
-
-    return 0;
-}
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 15, 0)
 /*
@@ -260,15 +231,15 @@ int msm_gem_mmap_obj(struct drm_gem_object *obj,
  */
 int msm_gem_mmap(struct file *filp, struct vm_area_struct *vma)
 {
-    int ret;
+	int ret;
 
-    ret = drm_gem_mmap(filp, vma);
-    if (ret) {
-        DBG("mmap failed: %d", ret);
-        return ret;
-    }
+	ret = drm_gem_mmap(filp, vma);
+	if (ret) {
+		DBG("mmap failed: %d", ret);
+		return ret;
+	}
 
-    return msm_gem_mmap_obj(vma->vm_private_data, vma);
+	return msm_gem_object_mmap(vma->vm_private_data, vma);
 }
 #endif
 
@@ -417,6 +388,9 @@ put_iova_spaces(struct drm_gem_object *obj, bool close)
 
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace) {
+	        pr_err("purge obj=%p size=%zu name=%s dmabuf=%d flags=%lx iova=%llx refs=%d\n",
+               obj, obj->size, msm_obj->name ?: "?",
+               !!obj->import_attach, msm_obj->flags, (u64)vma->iova, vma->inuse);
 			msm_gem_purge_vma(vma->aspace, vma);
 			if (close)
 				msm_gem_close_vma(vma->aspace, vma);
@@ -551,7 +525,7 @@ int msm_gem_get_and_pin_iova_range(struct drm_gem_object *obj,
 
 	msm_gem_lock(obj);
 	ret = get_and_pin_iova_range_locked(obj, aspace, iova, range_start, range_end);
-    msm_gem_unlock(obj);
+	msm_gem_unlock(obj);
 
 	return ret;
 }
@@ -868,81 +842,7 @@ void msm_gem_vunmap(struct drm_gem_object *obj)
 	vunmap(msm_obj->vaddr);
 	msm_obj->vaddr = NULL;
 }
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 15, 0)
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
-/* must be called before _move_to_active().. */
-int msm_gem_sync_object(struct drm_gem_object *obj,
-        struct msm_fence_context *fctx, bool exclusive)
-{
-    struct msm_gem_object *msm_obj = to_msm_bo(obj);
-    struct reservation_object_list *fobj;
 
-    struct dma_fence *fence;
-    int i, ret;
-
-    fobj = reservation_object_get_list(msm_obj->resv);
-    if (!fobj || (fobj->shared_count == 0)) {
-        fence = reservation_object_get_excl(msm_obj->resv);
-        /* don't need to wait on our own fences, since ring is fifo */
-        if (fence && (fence->context != fctx->context)) {
-            ret = dma_fence_wait(fence, true);
-            if (ret)
-                return ret;
-        }
-    }
-
-    if (!exclusive || !fobj)
-        return 0;
-
-    for (i = 0; i < fobj->shared_count; i++) {
-        fence = rcu_dereference_protected(fobj->shared[i],
-                        reservation_object_held(msm_obj->resv));
-        if (fence->context != fctx->context) {
-            ret = dma_fence_wait(fence, true);
-            if (ret)
-                return ret;
-        }
-    }
-
-    return 0;
-}
-#else
-/* must be called before _move_to_active().. */
-int msm_gem_sync_object(struct drm_gem_object *obj,
-		struct msm_fence_context *fctx, bool exclusive)
-{
-	struct dma_resv_list *fobj;
-	struct dma_fence *fence;
-	int i, ret;
-
-	fobj = dma_resv_shared_list(obj->resv);
-	if (!fobj || (fobj->shared_count == 0)) {
-		fence = dma_resv_excl_fence(obj->resv);
-		/* don't need to wait on our own fences, since ring is fifo */
-		if (fence && (fence->context != fctx->context)) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	if (!exclusive || !fobj)
-		return 0;
-
-	for (i = 0; i < fobj->shared_count; i++) {
-		fence = rcu_dereference_protected(fobj->shared[i],
-						dma_resv_held(obj->resv));
-		if (fence->context != fctx->context) {
-			ret = dma_fence_wait(fence, true);
-			if (ret)
-				return ret;
-		}
-	}
-
-	return 0;
-}
-#endif
-#endif
 void msm_gem_active_get(struct drm_gem_object *obj, struct msm_gpu *gpu)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
@@ -1206,7 +1106,8 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	kfree(msm_obj);
 }
 
-static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+//static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 

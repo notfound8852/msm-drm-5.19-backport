@@ -5,12 +5,16 @@
  */
 
 #include <drm/drm_atomic.h>
-// #include <drm/drm_damage_helper.h>
-#include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_gem_atomic_helper.h>
 
 #include "mdp4_kms.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_damage_helper.h>
+#else
+#include <drm/drm_atomic_helper.h>
+#endif
 
 #define DOWN_SCALE_MAX	8
 #define UP_SCALE_MAX	8

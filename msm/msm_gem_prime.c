@@ -28,16 +28,15 @@ int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	return drm_gem_prime_mmap(obj, vma);
 }
 #else
-//older version
 int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 {
-    int ret;
+	int ret;
 
-    ret = drm_gem_mmap_obj(obj, obj->size, vma);
-    if (ret < 0)
-        return ret;
+	ret = drm_gem_mmap_obj(obj, obj->size, vma);
+	if (ret < 0)
+		return ret;
 
-    return msm_gem_mmap_obj(vma->vm_private_data, vma);
+	return msm_gem_object_mmap(obj, vma);
 }
 #endif
 struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj)

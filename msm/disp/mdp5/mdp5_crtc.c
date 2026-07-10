@@ -12,12 +12,17 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
-// #include <drm/drm_probe_helper.h>
 #include <drm/drm_modeset_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "mdp5_kms.h"
 #include "msm_gem.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 #define CURSOR_WIDTH	64
 #define CURSOR_HEIGHT	64

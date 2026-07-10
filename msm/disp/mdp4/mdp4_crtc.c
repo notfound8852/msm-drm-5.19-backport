@@ -7,12 +7,16 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_mode.h>
-// #include <drm/drm_probe_helper.h>
-#include <drm/drm_modeset_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "mdp4_kms.h"
 #include "msm_gem.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#include <drm/drm_probe_helper.h>
+#else
+#include <drm/drm_modeset_helper.h>
+#endif
 
 struct mdp4_crtc {
 	struct drm_crtc base;

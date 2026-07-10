@@ -1134,7 +1134,7 @@ static struct drm_driver msm_driver = {
 	.gem_prime_import	= drm_gem_prime_import,
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
-    .gem_free_object	= msm_gem_free_object,
+    .gem_free_object_unlocked	= msm_gem_free_object,
     .gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= drm_gem_prime_import,
     .gem_prime_pin		= msm_gem_prime_pin,
