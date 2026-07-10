@@ -1,197 +1,4 @@
-# Quick how-to
-
-## For power domains:
-
-In `drivers/clk/qcom/gpucc-sdm845.c` add these:
-
-```c
-#include "gdsc.h"
-
-int gdsc_gx_do_nothing_enable(struct generic_pm_domain *domain)
-{
-    /* Do nothing with the GDSC itself */
-    return 0;
-}
-
-static struct gdsc gpu_gx_gdsc = {
-	.gdscr = 0x100c,
-	.clamp_io_ctrl = 0x1508,
-	.pd = {
-		.name = "gpu_gx_gdsc",
-		.power_on = gdsc_gx_do_nothing_enable,
-	},
-	.pwrsts = PWRSTS_OFF_ON,
-	.flags = CLAMP_IO | AON_RESET | POLL_CFG_GDSCR,
-};
-
-static struct gdsc gpu_cx_gdsc = {
-	.gdscr = 0x106c,
-	.gds_hw_ctrl = 0x1540,
-	.pd = {
-		.name = "gpu_cx_gdsc",
-	},
-	.pwrsts = PWRSTS_OFF_ON,
-	.flags = VOTABLE,
-};
-
-static struct gdsc *gpu_cc_sdm845_gdscs[] = {
-	[GPU_CX_GDSC] = &gpu_cx_gdsc,
-	[GPU_GX_GDSC] = &gpu_gx_gdsc,
-};
-
-static const struct qcom_cc_desc gpu_cc_sdm845_desc = {
-    .config = &gpu_cc_sdm845_regmap_config,
-    .clks = gpu_cc_sdm845_clocks,
-    .num_clks = ARRAY_SIZE(gpu_cc_sdm845_clocks),
-    .resets = gpu_cc_sdm845_resets,
-    .num_resets = ARRAY_SIZE(gpu_cc_sdm845_resets),
-	// Add these:
-    .gdscs = gpu_cc_sdm845_gdscs,
-    .num_gdscs = ARRAY_SIZE(gpu_cc_sdm845_gdscs),
-};
-```
-Then in `drivers/clk/qcom/dispcc-sdm845.c` add these:
-
-```c
-#include "gdsc.h"
-
-static struct gdsc mdss_gdsc = {
-    .gdscr = 0x3000,
-    .en_few_wait_val = 0x6,
-    .en_rest_wait_val = 0x5,
-    .pd = {
-        .name = "mdss_gdsc",
-    },
-    .pwrsts = PWRSTS_OFF_ON,
-    .flags = HW_CTRL | POLL_CFG_GDSCR,
-};
-
-static struct gdsc *disp_cc_sdm845_gdscs[] = {
-    [MDSS_GDSC] = &mdss_gdsc,
-};
-
-static const struct qcom_cc_desc disp_cc_sdm845_desc = {
-    .config = &disp_cc_sdm845_regmap_config,
-    .clks = disp_cc_sdm845_clocks,
-    .num_clks = ARRAY_SIZE(disp_cc_sdm845_clocks),
-    .resets = disp_cc_sdm845_resets,
-    .num_resets = ARRAY_SIZE(disp_cc_sdm845_resets),
-    // Add these:
-    .gdscs = disp_cc_sdm845_gdscs,
-    .num_gdscs = ARRAY_SIZE(disp_cc_sdm845_gdscs),
-};
-
-```
-
----
-
-**NOTE:** 4.19 doesn't have `pixel_blend_mode` and `blend_mode_property`
-
-### Quick guide:
-The above mentioned fields were manually added inside `struct drm_plane_state` in `include/drm/drm_plane.h`
-```
-	/**
-	 * @pixel_blend_mode:
-	 * The alpha blending equation selection, describing how the pixels from
-	 * the current plane are composited with the background. Value can be
-	 * one of DRM_MODE_BLEND_*
-	 */
-	uint16_t pixel_blend_mode;
-
-	/**
-	 * @blend_mode_property:
-	 * Optional "pixel blend mode" enum property for this plane.
-	 * Blend mode property represents the alpha blending equation selection,
-	 * describing how the pixels from the current plane are composited with
-	 * the background.
-	 */
-	struct drm_property *blend_mode_property;
-```
-
-* Then in `drivers/gpu/drm/drm_atomic.c` function `drm_atomic_plane_set_property`
-this was added under alpha:
-```
-	} else if (property == plane->blend_mode_property) {
-		state->pixel_blend_mode = val;
-```
-then in `drm_atomic_plane_get_property`
-under alpha again:
-```
-	} else if (property == plane->blend_mode_property) {
-		*val = state->pixel_blend_mode;
-```
-That's literally it.
-All the other newer helpers for reset and everything were backported painlessly into this driver.
-
----
-
-# CURRENT STATUS:
-**MSM module source:** Upstream Linux 5.19
-**Kernel version(The one I am on):** 4.19.255 - For Oneplus6/6T by EdwinMoq
-
-### 🟢 Baseline & Core Subsystems
-* **MDSS/DPU Pipeline:** Fully functional. Hardware interfaces probe flawlessly, `modetest` queries complete successfully, and early bootloader framebuffer hand-off transitions beautifully into the legacy TTY console (`/dev/fb0`).
-* **SMMU Layer:** Stable. IOMMU context banks are mapped and allocated safely.
-But most importantly, the panel lights up!
-
-### 🟢 GPU & GMU Status
-* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
-* **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
-* **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
-* **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
-
-### 🟢 Rendering:
-* **kmscube:** Works.
-* **Sway:** Vulkan backend renderer actually renders to the screen.
-
----
----
-
 # FIXES:
-
-## Shims structure:
-```
-./shims/
-├── backports
-│   ├── dma-fence-chain.c
-│   ├── drm_dsc_helper.c
-│   └── drm_syncobj.c
-├── compat
-│   ├── devm_compat.c
-│   └── dma-fence_missing_func.c
-├── core
-│   ├── drm_missing_func.c
-│   ├── drm_shim.c
-│   ├── interconnector.c
-│   └── opp.c
-├── include
-│   ├── compat_and_shims
-│   │   ├── devm_compat.h
-│   │   ├── dma-fence.h
-│   │   ├── iommu_shims.h
-│   │   ├── msm_compat_clk.h
-│   │   ├── nvmem-consumer.h
-│   │   ├── reservation.h
-│   │   └── xarray_shim.h
-│   ├── drm
-│   │   ├── display
-│   │   │   ├── drm_dp.h
-│   │   │   ├── drm_dp_helper.h
-│   │   │   ├── drm_dsc.h
-│   │   │   └── drm_dsc_helper.h
-│   │   ├── drm_shim.h
-│   │   ├── drm_syncobj.h
-│   │   └── gpu_scheduler.h
-│   ├── linux
-│   │   ├── adreno-smmu-priv.h
-│   │   ├── dma-fence-chain.h
-│   │   ├── interconnector.h
-│   │   └── opp.h
-│   └── uapi
-│       ├── uapi_drm.h
-│       └── uapi_msm_drm.h
-└── NOTE.md
-```
 
 ## Backports (present in the `shims/` directory):
 
@@ -199,11 +6,19 @@ But most importantly, the panel lights up!
 * `drm_dsc_helpers` were backported from 5.19.
 * `drm_syncobj` and all it's helpers were backported from 5.19.
 
+(btw, if you wanna see the tree structure of the `shims` directory check `shims/NOTE.md`)
+
 ---
 
 ## FIXES/added funcs to MSM:
 
 **NOTE:** The detailed explanations are in the actual files.
+This is me completely disregarding the amount of version checks in the driver itself. So stuff like:
+**get_vblank_timestamp and get_scanout_position: ** For Pre 5.13 versions are in `msm_drv.c`, search for `msm_driver_get_scanout_position` and `msm_driver_get_vblank_timestamp`
+**GEM Prime:** `gem_prime_import` and `gem_prime_export` added to `msm_drv.c` in `msm_driver`
+**Version checks around newer `const static struct` vs older `static struct`**
+...
+-is all disregared here. 
 
 **Unmanaged CX domain:**
 * In `adreno/a6xx_gmu.c` support for CX domain was backported from 6.x. Check `a6xx_gmu_init` flow.
@@ -306,9 +121,9 @@ It's really about understanding the problem, because the fix itself is trivial. 
 
 ---
 
-(This was a device tree fix.)
-
 ### ⚠️ The Zap Shader / Secure Pipeline Alignment Block
+**Overview:** This was a device tree fix.
+
 During initial attempts to bring up the engine, the command processor would always fail on a hardware packet submission, throwing a CP opcode error (`possible opcode=0x70E60001`) and caused a time out on the ringbuffer execution.
 
 #### The Root Cause
@@ -324,12 +139,6 @@ We ensured the platform's peripheral image loader remains fully operational at b
 * The 5.19 scheduler core now lives in `scheduler/` (`sched_main.c`, `sched_entity.c`, `sched_fence.c` + `include/drm/gpu_scheduler.h`).
 
 **Why?:** 4.19's in-tree `drm_sched` was too old to map the modern engine job model onto — it would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. Backporting the whole thing is what took the GPU from "idles but doesn't work" to *actually* rendering.
-
-**get_vblank_timestamp and get_scanout_position: ** For Pre 5.13 versions, the fixes are now in place. Check `msm_drv.c`, search for `msm_driver_get_scanout_position` and `msm_driver_get_vblank_timestamp`
-
-**GEM Prime:** `gem_prime_import` and `gem_prime_export` added to `msm_drv.c` in `msm_driver`
-
-**Why?** Null derefer.
 
 **MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function `submit_fence_sync` we skip sync if userspace wants to opt out..
 
@@ -356,3 +165,7 @@ Let's just assume that file descriptors for the same file probablyshare the file
 **MSM_INFO_SET_METADATA:** Added this from upstream so now we can set the metadata for BO's.
 
 **Why?:** Nobody wants to see, `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
+
+**msm_sched_job_add_implicit_dependencies:** Added to `msm_gem_submit.c` as a 4.19-5.3-compatible reimplementation of upstream's `drm_sched_job_add_implicit_dependencies`.
+
+**Why?:** Upstream's helper (5.16+) assumes `drm_gem_object` embeds `->resv` directly and walks it with `dma_resv_iter`/`dma_resv_usage_rw`. On 4.19, `msm_gem_object` still carries its own `struct reservation_object`, and fences live behind the legacy `fence_excl`/`fence` (shared list) fields with manual RCU handling — there's no iterator to call. Without this, implicit sync (exclusive fence always a dep, shared fences only on write) just doesn't happen, which bites you the moment two jobs touch the same BO without explicit fencing.

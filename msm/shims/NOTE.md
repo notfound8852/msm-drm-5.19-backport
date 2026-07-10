@@ -1,3 +1,47 @@
+## Shims structure:
+```
+./shims/
+├── backports						# mostly unmodified verbatim upstream files
+│   ├── dma-fence-chain.c
+│   ├── drm_dsc_helper.c
+│   └── drm_syncobj.c
+├── compat							# small shims, one function or macro per gap
+│   ├── devm_compat.c
+│   └── dma-fence_missing_func.c
+├── core							# substantial shims and reimplementations
+│   ├── drm_missing_func.c			# Missing DRM core functions
+│   ├── drm_shim.c					# Custom reimplementations
+│   ├── interconnector.c
+│   └── opp.c
+├── include
+│   ├── compat_and_shims			# headers for ./compat + ./core + ./backports/drm_syncobj.c
+│   │   ├── devm_compat.h
+│   │   ├── dma-fence.h
+│   │   ├── iommu_shims.h
+│   │   ├── msm_compat_clk.h
+│   │   ├── nvmem-consumer.h
+│   │   ├── reservation.h
+│   │   └── xarray_shim.h
+│   ├── drm
+│   │   ├── display					# verbatim upstream headers (pairs with backports/)
+│   │   │   ├── drm_dp.h
+│   │   │   ├── drm_dp_helper.h
+│   │   │   ├── drm_dsc.h
+│   │   │   └── drm_dsc_helper.h
+│   │   ├── drm_shim.h
+│   │   ├── drm_syncobj.h
+│   │   └── gpu_scheduler.h			# NOTE: duplicated in drivers/gpu/drm/scheduler/, kept in sync manually
+│   ├── linux						# verbatim upstream headers (except for interconnector.h and opp.h)
+│   │   ├── adreno-smmu-priv.h
+│   │   ├── dma-fence-chain.h
+│   │   ├── interconnector.h
+│   │   └── opp.h
+│   └── uapi						# verbatim upstream UAPI headers
+│       ├── uapi_drm.h
+│       └── uapi_msm_drm.h
+└── NOTE.md
+```
+
 # The following were wrapped in KERNEL VERSION CHECKS:
 * drm_atomic_helper_dirtyfb in msm_fb.c-we don't have it.
 * drm_gem_plane_helper_prepare_fb in disp/*/*_plane.c for drm_gem_fb_prepare_fb (older expectations)

@@ -13,7 +13,33 @@ It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Ad
 Here is the kernel I am using. Go check em out: [EdwinMoq](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19)
 Kernel version: `4.19.255`
 
-## Architecture
+---
+
+# CURRENT STATUS:
+**STABLE, as of July 4th 2026, 11:49pm.** The core driver architecture and hardware acceleration subsystems are fully functional. The stuff I have tested is `kmscube` and Sway window manager so far.
+
+**MSM module source:** Upstream Linux 5.19
+**My panel version** Upstream Linux 6.6
+**Kernel version(The one I am on):** Downstream 4.19.255 - For Oneplus6/6T by EdwinMoq
+
+### 🟢 Baseline & Core Subsystems
+* **MDSS/DPU Pipeline:** Fully functional. Hardware interfaces probe flawlessly, `modetest` queries complete successfully, and early bootloader framebuffer hand-off transitions beautifully into the legacy TTY console (`/dev/fb0`).
+* **SMMU Layer:** Stable. IOMMU context banks are mapped and allocated safely.
+But most importantly, the panel lights up!
+
+### 🟢 GPU & GMU Status
+* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
+* **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
+* **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
+* **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
+
+### 🟢 Rendering:
+* **kmscube:** Works.
+* **Sway:** Vulkan backend renderer actually renders to the screen.
+
+---
+
+# Architecture
 
 This driver is going to be a part of **Andrunix** (my main project), and it's going to utilize a **dual boot.img scheme** for running native Linux on Android hardware:
 
@@ -58,10 +84,6 @@ This backport includes several targeted fixes to address downstream-specific beh
 *   **Aperture Conflict Resolution:** Implements `msm_aperture_remove_framebuffers()` to cleanly evict the bootloader-initialized simplefb/framebuffer before DRM takes over, preventing memory contention.
 *   **Runtime CX Enabling:** Introduced `dev_gdsc_enable()` in `msm_mdss.c` and `a6xx_gmu.c` to allow manual GDSC management when the module is loaded post-boot (insmod).
 *   **Performance State Sanitization:** Added logic to ensure performance state votes are correctly reset to 0 during runtime suspend in `dpu_kms.c` and `dsi_host.c`, preventing power leakage.
-
-## Current Status:
-
-**Driver STATUS: STABLE, as of July 4th 2026, 11:49pm.** The core driver architecture and hardware acceleration subsystems are fully functional. The stuff I have tested is `kmscube` and Sway window manager so far.
 
 Now, while this is all sunshine and rainbows I do have two points:
 *	**Lack of Shim Layer Maturity:** No way in hell are the shims ready for any `>4.19` KVER... yet (In the future they will be)
@@ -116,5 +138,6 @@ config DRM_SCHED
 ```
 
 ## 📄 Technical Documentation
-See [setup_and_fixes.md](setup_and_fixes.md) for a deep dive into specific implementation hacks and SMMU fault analysis along with how to get genpd power-domains to work.
+See [setup.md](setup.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
+See [fixes.md](fixes.md) for a deep dive into specific fixes, implementation, hacks and SMMU fault analysis.
 See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.
