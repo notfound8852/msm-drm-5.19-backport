@@ -339,6 +339,45 @@ fail:
 }
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
+/**
+ * msm_sched_job_add_implicit_dependencies() - add implicit deps for a legacy-resv GEM object
+ * @job: scheduler job to attach fence dependencies to
+ * @obj: GEM object being read or written by @job
+ * @write: true if @job writes @obj, false if read-only
+ *
+ * Downstream (4.19) equivalent of upstream's drm_sched_job_add_implicit_dependencies().
+ * That upstream helper assumes drm_gem_object embeds ->resv directly and uses the
+ * dma_resv_iter/dma_resv_usage_rw API (5.16+). Here, struct msm_gem_object still carries
+ * its own struct reservation_object (msm_obj->resv), and fences live behind the legacy
+ * reservation_object_list / fence_excl fields, each requiring manual RCU handling instead
+ * of a single iterator call. This function reimplements the same dependency-collection
+ * semantics against that older layout:
+ *
+ * - The exclusive fence (resv->fence_excl) is always added as a dependency, since any
+ *   reader or writer must wait on the last writer.
+ * - Shared fences (resv->fence, the shared[] array) are only added when @write is true,
+ *   since a read-only job need not wait on other concurrent readers, only on the writer.
+ *
+ * Fences are pulled out via rcu_dereference() + dma_fence_get_rcu() while holding
+ * rcu_read_lock(), matching the locking convention required by reservation_object on
+ * this kernel version (no dma_resv_lock/dma_resv_held equivalent guarantees here, so RCU
+ * is the only safe way to read the fence pointers). The lock is dropped before calling
+ * drm_sched_job_add_dependency(), since that can sleep, and reacquired for subsequent
+ * iterations of the shared-fence loop.
+ *
+ * If msm_obj has no reservation object (msm_obj->resv is NULL) this is a no-op returning
+ * success — callers don't need to special-case objects that aren't participating in
+ * implicit sync.
+ *
+ * Context: Caller must hold whatever lock the CAF/downstream reservation_object API
+ * expects for @obj (typically the GEM object's own lock during job submission); this
+ * function does not itself acquire it.
+ *
+ * Return: 0 on success, or a negative errno from drm_sched_job_add_dependency() on
+ * failure (dependency limit reached, allocation failure, etc). On failure the fence
+ * that failed to attach has already been put; any fences successfully added earlier
+ * remain owned by the job and don't need cleanup by the caller.
+ */
 int msm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 					    struct drm_gem_object *obj,
 					    bool write)
@@ -358,8 +397,8 @@ int msm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 	rcu_read_lock();
 
 	fence = rcu_dereference(resv->fence_excl);
-	if (fence)
-		dma_fence_get_rcu(fence);
+	if (fence && !dma_fence_get_rcu(fence))
+		fence = NULL;
 
 	rcu_read_unlock();
 
