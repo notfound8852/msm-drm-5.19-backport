@@ -39,6 +39,49 @@ But most importantly, the panel lights up!
 
 ---
 
+# Why This Exists: The Great DRM/KMS Divide (Android Bionic vs Standard Linux Glibc)
+
+**Note:** This is gonna be a bit of a history lesson.
+
+For over a decade, developers and open-source communities have tried to run standard GNU/Linux on modern smartphone hardware. Historically, this has divided the community into two camps, each representing a massive compromise.
+
+## The History
+
+1. **The Middle-Ground (The `libhybris` Era):**
+   Originating around 2012 within the Mer project (and popularized by Jolla for Sailfish OS and Canonical for Ubuntu Touch), `libhybris` was a brilliant hack. It allowed glibc-based Linux userspace programs to load and call Android’s Bionic C-library-linked proprietary graphics blobs. However, wrapping Android’s Hardware Abstraction Layers (HALs) and translating EGL calls meant dealing with significant compatibility shims, translation overhead, and complex dependency structures. Over time, maintaining this Bionic-to-Glibc bridge became a massive maintenance burden.
+
+2. **The Purist-Ground (The Mainlining Movement):**
+   Around late 2017, "mainlining" was gaining serious momentum. Led by legendary Linux enthusiast communities like postmarketOS (pmOS), a massive push was made to break free from Android's bloated downstream vendor kernels completely. The goal? Run a pure, upstream mainline Linux kernel on phones.
+
+3. **Google's Official AVF:**
+   Finalized with Android 13 on Pixel devices (and mandated for many ARMv9 devices on Android 14+), AVF leverages **pKVM (Protected KVM)**. Instead of just exposing raw KVM, pKVM enforces strict, cryptographically backed memory isolation between the Android host and the guest VM (typically running Google's stripped-down "Microdroid" OS). While great for running secure DRM keys or isolated code, it's essentially a brick wall if you want a seamless, high-performance desktop Linux environment.
+
+If you couldn't already tell; **This project is my attempt at solving this complex gap.**
+
+**My take on the existing options:** I've always had this passion for a "perfect world" where I don't have to choose between Android or Linux for my phone's OS. And yes, I'm sure we've all had this exact thought. While looking at these options, I really wanted to lean towards upstreaming, as it's undoubtedly the best path in my opinion. No matter how broken upstream might be. pmOS single-handedly supports more devices than any other project, especially when we talk about downstream devices. The other options aside from mainlining just add a shit-ton of userspace fragmentation and or introduce latency.
+Criticizing both, I had a thought. What if we just... swapped drivers? Stay downstream but use the mainline driver at runtime. Unbind KGSL and SDE, `insmod` the panel and `msm` driver and... I'm sure you can imagine where this is going.
+
+Now, of course, this approach does *not* work out of the box and requires patching the SDE driver (I still haven't uploaded the patches because I am unbelievably lazy 😭). But for my "perfect world" scenario? It's still way better than hacking half my userspace.
+
+**This project is my attempt at solving that gap.**
+
+## Comparisons
+
+| Approach | What you get | What it costs |
+| :--- | :--- | :--- |
+| **libhybris** | Android's blobs, callable from a Linux userspace | **Translation overhead** — every graphics call is routed through an intermediate compatibility layer. For example, standard Linux EGL/GBM calls from a Wayland compositor (like Weston) are intercepted, translated, and marshaled into Android-specific `gralloc` or `hwcomposer` calls before reaching the proprietary blobs, destroying native performance. |
+| **AVF / KVM** | A real Linux guest, isolated | **Virtualization overhead*** — you're virtualizing an entire secondary kernel just to display a desktop. Good luck getting working GPU passthrough on a mobile SoC (a complete nightmare for the pure `KVM` path). |
+| **Full Mainlining** | Real upstream kernel, zero overhead | **No Android** — if your device isn't already mainlined, you're forced to reverse-engineer everything yourself. Otherwise, you're at the mercy of half-baked (sometimes they absolutely do work) community drivers, battery drain, broken hardware keys, and overheating issues. |
+| **This Backport** | Real upstream-model driver (Your kernel's stock DRM/KMS + modern 5.19 scheduler), zero overhead, vendor blobs still work | **My sanity.** |
+
+***
+
+Nah, I'm just kidding. In all seriousness, this was actually a pretty fun learning experience. It was definitely frustrating at times and quite stressful through the month of June (college finals, poorly scheduled university entrance exams, and three other equally annoying, difficult tasks was a surefire way to hit mid-month burnout. Yes, I did this during exams. 🙃)
+
+---
+---
+
+
 # Architecture
 
 This driver is going to be a part of **Andrunix** (my main project), and it's going to utilize a **dual boot.img scheme** for running native Linux on Android hardware:
@@ -138,6 +181,6 @@ config DRM_SCHED
 ```
 
 ## 📄 Technical Documentation
-See [setup.md](setup.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
-See [fixes.md](fixes.md) for a deep dive into specific fixes, implementation, hacks and SMMU fault analysis.
-See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.
+* See [setup.md](setup.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
+* See [fixes.md](fixes.md) for a deep dive into specific fixes, implementation, hacks and SMMU fault analysis.
+* See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.

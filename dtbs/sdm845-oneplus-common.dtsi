@@ -101,7 +101,7 @@
 
 			iommus = <&apps_smmu 0x880 0x8>,
 					 <&apps_smmu 0xc80 0x8>;
-			qcom,iommu-faults = "non-fatal";
+
 			status = "okay";
 
 			#address-cells = <1>;
@@ -201,9 +201,6 @@
 							<&clock_dispcc DISP_CC_MDSS_PCLK0_CLK_SRC>;
 				assigned-clock-parents = <&mainline_dsi0_phy 0>,
 								<&mainline_dsi0_phy 1>;
-
-				// vddcx-supply = <&pm8998_s9_level>; //
-				// CX rail would go here. //
 
 				operating-points-v2 = <&dsi_opp_table>;
 				phys = <&mainline_dsi0_phy>;
@@ -614,9 +611,8 @@ POWER_NODE(clock_gpucc);
 #include "sdm845-audio-overlay.dtsi"
 #define DISABLE_NODE(label)    &label { status = "disabled"; }
 
-/*
- * Disable SDE.
- */
+/* Disable SDE */
+
 DISABLE_NODE(mdss_mdp);
 DISABLE_NODE(sde_rscc);
 DISABLE_NODE(mdss_rotator);
@@ -626,39 +622,11 @@ DISABLE_NODE(mdss_dsi_phy0);
 DISABLE_NODE(mdss_dsi_phy1);
 DISABLE_NODE(sde_dp);
 
-/*
- * Disable KGSL.
- */
-DISABLE_NODE(msm_bus);
-
-/* NOTE: Leaving pil_gpu enabled means the qcom,pil-tz-generic
- * driver probes pas-id 13 and authenticates the zap at boot
- * putting the GPU's secure pipeline in the right state so the
- *  msm driver's CP_SET_SECURE_MODE can be accepted.
- */
-//DISABLE_NODE(pil_gpu);
-
-DISABLE_NODE(gpu_bw_tbl);
-DISABLE_NODE(msm_gpu);
-DISABLE_NODE(gpubw);
-DISABLE_NODE(kgsl_msm_iommu);
-DISABLE_NODE(gmu);
-
-/*
- * disable KGSL SMMU.
-*/
-
-DISABLE_NODE(kgsl_smmu);
-
-/*
- * Disable SDE PIL
- */
+/* Disable SDE PIL */
 DISABLE_NODE(mdss_dsi0_pll);
 DISABLE_NODE(mdss_dp_pll);
 
-/*
- * Disable SDE Display (if needed)
- */
+/* Disable SDE Display (if needed) */
 
 DISABLE_NODE(dsi_panel_pwr_supply);
 DISABLE_NODE(dsi_panel_pwr_supply_no_labibb);
@@ -667,3 +635,22 @@ DISABLE_NODE(sde_dsi);
 DISABLE_NODE(sde_wb);
 DISABLE_NODE(ext_disp);
 
+/* Disable KGSL SMMU */
+DISABLE_NODE(kgsl_smmu);
+
+/* Disable KGSL */
+
+DISABLE_NODE(msm_bus);
+DISABLE_NODE(gpu_bw_tbl);
+DISABLE_NODE(msm_gpu);
+DISABLE_NODE(gpubw);
+DISABLE_NODE(kgsl_msm_iommu);
+DISABLE_NODE(gmu);
+
+/* NOTE: We leave pil_gpu enabled so the qcom,pil-tz-generic
+ * driver probes pas-id 13 and authenticates the zap at boot
+ * putting the GPU's secure pipeline in the right state so 
+ * the MSM driver's CP_SET_SECURE_MODE can be accepted.
+ */
+
+//DISABLE_NODE(pil_gpu);
