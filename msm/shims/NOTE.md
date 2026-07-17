@@ -42,10 +42,7 @@
 └── NOTE.md
 ```
 
-# The following were wrapped in KERNEL VERSION CHECKS:
 * drm_atomic_helper_dirtyfb in msm_fb.c-we don't have it.
-* drm_gem_plane_helper_prepare_fb in disp/*/*_plane.c for drm_gem_fb_prepare_fb (older expectations)
-* drm_plane_enable_fb_damage_clips full dropped
 
 INTERCONNECTOR SHIM usage:
 ```

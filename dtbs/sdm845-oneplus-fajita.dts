@@ -9,7 +9,6 @@
     qcom,board-id = <8 0 18801 41>;
     oem,project-id = <18801>;
     oem,hw-id = <41>;
-
 };
 
 &display_panel {
@@ -21,8 +20,5 @@
 	height = <2340>;
 };
 
-/*
- * Disable the panel (if needed.)
-*/
-
+/* Disable the panel (if needed.) */
 DISABLE_NODE(dsi_samsung_s6e3fc2x01_cmd);

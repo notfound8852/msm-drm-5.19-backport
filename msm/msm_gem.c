@@ -388,9 +388,6 @@ put_iova_spaces(struct drm_gem_object *obj, bool close)
 
 	list_for_each_entry(vma, &msm_obj->vmas, list) {
 		if (vma->aspace) {
-	        pr_err("purge obj=%p size=%zu name=%s dmabuf=%d flags=%lx iova=%llx refs=%d\n",
-               obj, obj->size, msm_obj->name ?: "?",
-               !!obj->import_attach, msm_obj->flags, (u64)vma->iova, vma->inuse);
 			msm_gem_purge_vma(vma->aspace, vma);
 			if (close)
 				msm_gem_close_vma(vma->aspace, vma);

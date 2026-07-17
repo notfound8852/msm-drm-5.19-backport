@@ -16,8 +16,5 @@
     compatible = "samsung,sofef00";
 };
 
-/*
- * Disable the panel (if needed.)
-*/
-
+/* Disable the panel (if needed.) */
 DISABLE_NODE(dsi_samsung_sofef00_m_cmd);
