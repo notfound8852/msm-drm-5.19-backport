@@ -61,7 +61,7 @@ If you couldn't already tell; **This project is my attempt at solving this compl
 **My take on the existing options:** I've always had this passion for a "perfect world" where I don't have to choose between Android or Linux for my phone's OS. And yes, I'm sure we've all had this exact thought. While looking at these options, I really wanted to lean towards upstreaming, as it's undoubtedly the best path in my opinion. No matter how broken upstream might be. pmOS single-handedly supports more devices than any other project, especially when we talk about downstream devices. The other options aside from mainlining just add a shit-ton of userspace fragmentation and or introduce latency.
 Criticizing both, I had a thought. What if we just... swapped drivers? Stay downstream but use the mainline driver at runtime. Unbind KGSL and SDE, `insmod` the panel and `msm` driver and... I'm sure you can imagine where this is going.
 
-Now, of course, this approach does *not* work out of the box and requires patching the SDE driver (I still haven't uploaded the patches because I am unbelievably lazy 😭). But for my "perfect world" scenario? It's still way better than hacking half my userspace.
+Now, of course, this approach does *not* work out of the box and requires patching the SDE driver But for my "perfect world" scenario? It's still way better than hacking half my userspace.
 
 **This project is my attempt at solving that gap.**
 
@@ -70,17 +70,16 @@ Now, of course, this approach does *not* work out of the box and requires patchi
 | Approach | What you get | What it costs |
 | :--- | :--- | :--- |
 | **libhybris** | Android's blobs, callable from a Linux userspace | **Translation overhead** — every graphics call is routed through an intermediate compatibility layer. For example, standard Linux EGL/GBM calls from a Wayland compositor (like Weston) are intercepted, translated, and marshaled into Android-specific `gralloc` or `hwcomposer` calls before reaching the proprietary blobs, destroying native performance. |
-| **AVF / KVM** | A real Linux guest, isolated | **Virtualization overhead*** — you're virtualizing an entire secondary kernel just to display a desktop. Good luck getting working GPU passthrough on a mobile SoC (a complete nightmare for the pure `KVM` path). |
+| **AVF / KVM** | A real Linux guest, isolated | **Virtualization overhead** — you're virtualizing an entire secondary kernel just to display a desktop. Good luck getting working GPU passthrough on a mobile SoC (a complete nightmare for the pure `KVM` path). |
 | **Full Mainlining** | Real upstream kernel, zero overhead | **No Android** — if your device isn't already mainlined, you're forced to reverse-engineer everything yourself. Otherwise, you're at the mercy of half-baked (sometimes they absolutely do work) community drivers, battery drain, broken hardware keys, and overheating issues. |
 | **This Backport** | Real upstream-model driver (Your kernel's stock DRM/KMS + modern 5.19 scheduler), zero overhead, vendor blobs still work | **My sanity.** |
 
-***
+---
 
 Nah, I'm just kidding. In all seriousness, this was actually a pretty fun learning experience. It was definitely frustrating at times and quite stressful through the month of June (college finals, poorly scheduled university entrance exams, and three other equally annoying, difficult tasks was a surefire way to hit mid-month burnout. Yes, I did this during exams. 🙃)
 
 ---
 ---
-
 
 # Architecture
 
@@ -89,9 +88,9 @@ This driver is going to be a part of **Andrunix** (my main project), and it's go
 1. **Standard Android Boot:** Uses the vendor kernel with KGSL/SDE for regular Android functionality.
 2. **Linux Desktop Boot:** Uses a modified Device Tree (DTB) where vendor KGSL and SDE nodes are stripped and replaced with mainline-aligned MDSS/Adreno nodes, backed by this **msm-drm-5.19** driver.
 
-**NOTE:** This approach might eventually be changed to do a live swap while being booted into Android (I have patched SDE's uninit flow — just haven't gotten around to releasing it, yet.)
+**NOTE:** This approach eventually will be changed to do a live swap while being booted into Android. But for now, this we avoid the extreme complexity of live SDE ↔ MSM driver switching as the uninit flow is completely mangled.
 
-But for now, this approach avoids the extreme complexity of live SDE ↔ MSM driver switching, which is notoriously prone to unfixable teardown race conditions in downstream kernels.
+If you do want to fix the uninit flow, go check out my SDE patches. It does *exactly* that: [msm-sde-uninit-patches](https://github.com/notfound8852/msm-sde-uninit-patches)
 
 ## Key Features
 
