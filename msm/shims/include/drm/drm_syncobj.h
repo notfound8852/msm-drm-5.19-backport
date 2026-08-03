@@ -26,14 +26,14 @@
 #ifndef __DRM_SYNCOBJ_H__
 #define __DRM_SYNCOBJ_H__
 
-/* Since we don't have DRIVER_SYNCOBJ_TIMELINE
- * we'll define it with a high enough bit to
- * avoid collision.
- */
-#define DRIVER_SYNCOBJ_TIMELINE         0x100000
-
 #include <linux/dma-fence.h>
 #include "linux/dma-fence-chain.h"
+
+
+#include <drm/drm_drv.h>
+#ifndef DRIVER_SYNCOBJ_TIMELINE
+#define DRIVER_SYNCOBJ_TIMELINE         0x100000
+#endif
 
 struct drm_file;
 

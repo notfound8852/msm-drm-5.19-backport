@@ -17,7 +17,7 @@
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 17, 0)
 #include "drm/gpu_scheduler.h"
 #else
-#include "shims/include/drm/gpu_scheduler.h"
+#include "include/drm/gpu_scheduler.h"
 #endif
 
 /* Make all GEM related WARN_ON()s ratelimited.. when things go wrong they

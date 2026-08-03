@@ -1102,9 +1102,11 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	kfree(msm_obj->metadata);
 	kfree(msm_obj);
 }
-
-//static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
+static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+#else
 int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
+#endif
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
 

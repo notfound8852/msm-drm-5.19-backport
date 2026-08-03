@@ -16,6 +16,9 @@ int of_icc_get(struct device *dev,
 		return -ENODEV;
 
 	/* Each entry = <src dst> */
+	if (len <= 0 || len % (sizeof(u32) * 2))
+		return -EINVAL;
+
 	count = len / (sizeof(u32) * 2);
 
 	for (i = 0; i < count; i++) {
@@ -58,9 +61,16 @@ int of_icc_get(struct device *dev,
 
 err_rollback:
 	while (i--) {
-		if (paths[i])
-			icc_put(paths[i]);
+		icc_put(paths[i]);
+		paths[i] = NULL;
 	}
+
+	/*
+	 * Leave the caller with an array it can hand straight to a teardown
+	 * path rather than a mix of live and freed handles.
+	 */
+	*num_paths = 0;
+
 	return ret;
 }
 EXPORT_SYMBOL(of_icc_get);
@@ -93,16 +103,12 @@ static void devm_icc_release(void *data)
 	struct devm_icc_closure *closure = data;
 	u32 i;
 
-	if (!closure)
-		return;
-
 	for (i = 0; i < closure->num_paths; i++) {
-		if (closure->paths[i]) {
-			icc_put(closure->paths[i]);
-			closure->paths[i] = NULL;
-		}
+		icc_put(closure->paths[i]);
+		closure->paths[i] = NULL;
 	}
-	kfree(closure->paths);
+
+	closure->num_paths = 0;
 }
 
 int devm_of_icc_get(struct device *dev,
@@ -110,7 +116,7 @@ int devm_of_icc_get(struct device *dev,
 		    u32 *num_paths)
 {
 	struct devm_icc_closure *closure;
-	struct icc_path **tracked_paths;
+	size_t alloc_size;
 	u32 i;
 	int ret;
 
@@ -118,34 +124,42 @@ int devm_of_icc_get(struct device *dev,
 	if (ret)
 		return ret;
 
-	closure = devm_kzalloc(dev, sizeof(*closure), GFP_KERNEL);
-	if (!closure)
-		goto err_cleanup;
+	/*
+	 * The closure keeps its own copy of the handles so its lifetime is
+	 * independent of whatever the caller does with its array.
+	 */
+	alloc_size = sizeof(*closure) +
+		     *num_paths * sizeof(struct icc_path *);
 
-	tracked_paths = kmalloc_array(*num_paths,
-				      sizeof(*tracked_paths),
-				      GFP_KERNEL);
-	if (!tracked_paths)
+	closure = devm_kzalloc(dev, alloc_size, GFP_KERNEL);
+	if (!closure) {
+		ret = -ENOMEM;
 		goto err_cleanup;
+	}
 
 	for (i = 0; i < *num_paths; i++)
-		tracked_paths[i] = paths[i];
+		closure->paths[i] = paths[i];
 
-	closure->paths = tracked_paths;
 	closure->num_paths = *num_paths;
 
 	ret = devm_add_action_or_reset(dev, devm_icc_release, closure);
-	if (ret)
-		return ret;
+	if (ret) {
+		/* The reset already put every path; just clear the caller's view. */
+		goto err_clear;
+	}
 
 	return 0;
 
 err_cleanup:
-	for (i = 0; i < *num_paths; i++) {
-		if (paths[i])
-			icc_put(paths[i]);
-	}
+	for (i = 0; i < *num_paths; i++)
+		icc_put(paths[i]);
 
-	return -ENOMEM;
+err_clear:
+	for (i = 0; i < *num_paths; i++)
+		paths[i] = NULL;
+
+	*num_paths = 0;
+
+	return ret;
 }
 EXPORT_SYMBOL(devm_of_icc_get);

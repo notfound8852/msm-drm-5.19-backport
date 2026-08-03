@@ -51,7 +51,7 @@
 #include "compat_and_shims/devm_compat.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-#include "compat_and_shims/msm_compat_clk.h"
+#include "compat_and_shims/devm_compat_clk.h"
 #include "linux/pm_opp.h"
 #endif
 

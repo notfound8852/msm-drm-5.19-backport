@@ -36,6 +36,7 @@ int msm_gem_prime_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 	if (ret < 0)
 		return ret;
 
+//    return msm_gem_mmap_obj(vma->vm_private_data, vma);
 	return msm_gem_object_mmap(obj, vma);
 }
 #endif
