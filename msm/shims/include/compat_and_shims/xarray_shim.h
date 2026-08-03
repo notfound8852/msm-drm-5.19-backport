@@ -74,14 +74,15 @@ static inline void *xa_erase(struct xarray *xa, unsigned long index)
     return old;
 }
 
-// 4. Iterator macro mapping
-//
-// idr_get_next() takes an `int *nextid`, but the upstream scheduler code
-// iterates with an `unsigned long index`. We can't use idr_for_each_entry()
-// directly (incompatible-pointer-types -Werror). Cast the address instead:
-// this is safe on little-endian (ARM64) because every id we ever store is
-// xa_limit_32b, so it lives entirely in the low 32 bits and `index` is zeroed
-// at loop entry (high word stays clear). gnu89-safe: declares nothing inline.
+/* 4. Iterator macro mapping
+ *
+ * idr_get_next() takes an `int *nextid`, but the upstream scheduler code
+ * iterates with an `unsigned long index`. We can't use idr_for_each_entry()
+ * directly (incompatible-pointer-types -Werror). Cast the address instead:
+ * this is safe on little-endian (ARM64) because every id we ever store is
+ * xa_limit_32b, so it lives entirely in the low 32 bits and `index` is zeroed
+ * at loop entry (high word stays clear). gnu89-safe: declares nothing inline.
+ */
 #define xa_for_each(xa, index, entry) \
     for ((index) = 0; \
          ((entry) = idr_get_next(&(xa)->idr, (int *)&(index))) != NULL; \
@@ -92,5 +93,4 @@ static inline void *xa_erase(struct xarray *xa, unsigned long index)
 #include <linux/xarray.h>
 
 #endif /* LINUX_VERSION_CODE < KERNEL_VERSION(4, 20, 0) */
-
 #endif /* _MSM_XARRAY_BACKPORT_H_ */

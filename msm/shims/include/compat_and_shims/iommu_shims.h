@@ -1,8 +1,8 @@
 #ifndef IO_PGTABLE_QUIRK_ARM_TTBR1
-#define IO_PGTABLE_QUIRK_ARM_TTBR1 BIT(29) // avoid collision
+#define IO_PGTABLE_QUIRK_ARM_TTBR1 BIT(29)
 #endif
 #ifndef IO_PGTABLE_QUIRK_ARM_OUTER_WBWA
-#define IO_PGTABLE_QUIRK_ARM_OUTER_WBWA BIT(21) // this just exists for the sake of existing.
+#define IO_PGTABLE_QUIRK_ARM_OUTER_WBWA BIT(21)
 #endif
 
 #ifndef IO_PGTABLE_QUIRKS

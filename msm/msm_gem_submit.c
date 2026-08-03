@@ -404,10 +404,8 @@ int msm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 
 	if (fence) {
 		ret = drm_sched_job_add_dependency(job, fence);
-		if (ret) {
-			dma_fence_put(fence);
-			return ret;
-		}
+		if (ret)
+			goto put_fence;
 	}
 
 	/* Shared fences are only dependencies for write operations. */
@@ -417,30 +415,38 @@ int msm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 	rcu_read_lock();
 
 	list = rcu_dereference(resv->fence);
-	if (list) {
-		for (i = 0; i < list->shared_count; i++) {
-			fence = rcu_dereference(list->shared[i]);
-			if (!fence)
-				continue;
+	if (!list) {
+		rcu_read_unlock();
+		return 0;
+    }
 
-			if (!dma_fence_get_rcu(fence))
-				continue;
+	for (i = 0; i < list->shared_count; i++) {
+		fence = rcu_dereference(list->shared[i]);
+		if (!fence)
+			continue;
 
-			rcu_read_unlock();
+		if (!dma_fence_get_rcu(fence))
+			continue;
 
-			ret = drm_sched_job_add_dependency(job, fence);
-			if (ret) {
-				dma_fence_put(fence);
-				return ret;
-			}
+		rcu_read_unlock();
 
-			rcu_read_lock();
-		}
+		ret = drm_sched_job_add_dependency(job, fence);
+		if (ret)
+			goto put_fence;
+
+		rcu_read_lock();
+
+		list = rcu_dereference(resv->fence);
+		if (!list || i >= list->shared_count)
+			break;
 	}
 
-	rcu_read_unlock();
-
 	return 0;
+
+put_fence:
+	dma_fence_put(fence);
+
+	return ret;
 }
 #endif
 static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)

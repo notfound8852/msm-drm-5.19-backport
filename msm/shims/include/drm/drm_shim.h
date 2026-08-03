@@ -3,16 +3,6 @@
 
 #include <generated/uapi/linux/version.h>
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-
-#ifndef DRM_SCHED_PRIORITY_HIGH
-#define DRM_SCHED_PRIORITY_HIGH DRM_SCHED_PRIORITY_HIGH_HW
-#endif
-
-#ifndef DRM_SCHED_PRIORITY_COUNT
-#define DRM_SCHED_PRIORITY_COUNT DRM_SCHED_PRIORITY_MAX
-#endif
-
 #ifndef DRM_MODE_BLEND_PIXEL_NONE
 #define DRM_MODE_BLEND_PIXEL_NONE       0
 #define DRM_MODE_BLEND_PREMULTI         1
@@ -29,7 +19,7 @@
 #ifndef PHY_TYPE_CPHY
 #define PHY_TYPE_CPHY 2 // Standard value in newer kernels
 #endif
-#ifndef DRM_DBG_VBL
+#ifndef drm_dbg_vbl
 #define drm_dbg_vbl(drm, fmt, ...) drm_dbg(DRM_UT_VBL, fmt, ##__VA_ARGS__)
 #define drm_dbg_state(drm, fmt, ...) drm_dbg(DRM_UT_ATOMIC, fmt, ##__VA_ARGS__)
 #define drm_debug_enabled(category) (drm_debug & (category))
@@ -40,7 +30,7 @@
 #endif
 
 
-#ifndef DRM_GEM_PLANE_HELPER_PREPARE_FB
+#ifndef drm_gem_plane_helper_prepare_fb
 #define drm_gem_plane_helper_prepare_fb(plane, new_state) \
     drm_gem_fb_prepare_fb(plane, new_state)
 #endif
@@ -59,7 +49,6 @@
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 9, 0)
 #ifndef drm_gem_object_put
 #define drm_gem_object_put drm_gem_object_put_unlocked
-#endif
 #endif
 
 #endif /* DRM_SHIM_H */

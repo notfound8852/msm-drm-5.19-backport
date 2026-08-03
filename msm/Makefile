@@ -3,9 +3,8 @@ ccflags-y := -I $(srctree)/$(src)
 ccflags-y += -I $(srctree)/$(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
 ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
-# Our flags DRM_MSM_IS_DOWNSTREAM
-ccflags-y += -I$(srctree)/$(src)/shims/include \
-			 -I$(srctree)/$(src)/shims
+ccflags-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += -I$(srctree)/$(src)/shims/include \
+										   -I$(srctree)/$(src)/shims
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -20,7 +19,7 @@ msm-y := \
 	adreno/a6xx_gmu.o \
 	adreno/a6xx_hfi.o \
 
-msm-y += \
+msm-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += \
 	shims/core/drm_shim.o \
 	shims/core/drm_missing_func.o \
 	shims/core/interconnector.o \

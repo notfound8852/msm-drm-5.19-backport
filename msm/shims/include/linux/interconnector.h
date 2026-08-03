@@ -48,12 +48,14 @@ struct icc_path {
 
 /**
  * struct devm_icc_closure - Tracking structure for resource-managed paths
- * @paths: Array of allocated icc_path pointers
  * @num_paths: Total number of active paths in the array
+ * @paths: Flexible array holding a private copy of the allocated icc_path
+ *         pointers, so the closure does not depend on the caller's array
+ *         outliving it
  */
 struct devm_icc_closure {
-    struct icc_path **paths;
     u32 num_paths;
+    struct icc_path *paths[];
 };
 
 /**
@@ -75,9 +77,11 @@ void icc_put(struct icc_path *path);
 
 
 /**
- * NOTE: This function isn't used in the MSM driver itself but instead in
- * the OPP shim where this function becomes extremely important to prevent
- * memory leaks.
+ * NOTE: The managed variant, for consumers that want the paths released at
+ * unbind without owning the teardown themselves. The OPP shim used to be the
+ * one caller; it now parks the paths in its own devres node and releases them
+ * there, so it uses plain of_icc_get(). Kept because it is the correct thing
+ * to reach for from a probe path that has nowhere else to put the handles.
  */
 int devm_of_icc_get(struct device *dev,
                       struct icc_path **paths,

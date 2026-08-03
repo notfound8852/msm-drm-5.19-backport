@@ -5,7 +5,6 @@
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/slab.h>
-//#include <linux/clk.h>
 
 /* ------------------------------------------------------------------ *
  *  devm_clk_hw_register_divider
