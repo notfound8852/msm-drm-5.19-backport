@@ -1,120 +1,79 @@
 #ifndef OPP_HANDLE_H
 #define OPP_HANDLE_H
 
-/**
+/*
+ * OPP shim - the mainline dev_pm_opp_* entry points the MSM driver calls, on top
+ * of the OPP core downstream ships.
  *
- * Upstream/mainline kernels completely overhauled the OPP subsystem around Linux 5.11+
- * Instead of the drivers handling clocks, power domains, and interconnects explicitly,
- * modern OPP binds them into a single, unified node in the DTB. So when a driver calls
- * dev_pm_opp_set_opp(), the core kernel atomically scales the clock speed, hooks into
- * the generic power domain (genpd) for voltage, and scales peak/avg bandwidth using the
- * modern Interconnect (ICC) subsystem(introduced in >= Linux 5.1).
+ * Downstream parses "opp-hz" and the supply properties and nothing else: struct
+ * dev_pm_opp has no level field and no bandwidth array. What the core declined
+ * to parse is recovered from opp->np, and the clock and interconnect handles
+ * live in a private devres node per device.
  *
- * - opp-hz             -> refer to clock speeds.
- * - opp-level          -> refers to the voltage level.
- * - opp-peak-kBps      -> refers to the interconnect B/W.
- *
- * PROBLEM: We don't have any of this... The core helpers are "devm_pm_opp_of_add_table",
- * "dev_pm_opp_set_opp", "dev_pm_opp_get_level".
- *
- * NOTE: Fortunately, we can trace how the new new helpers work. dev_pm_opp_set_opp()
- * simply acts as a selector in the opp-table of a dev. It's responsible for voting for
- * the power, the clk rates, the B/W.
- *
- * FIX: Downstream(4.19) has dev_pm_opp_of_add_table in the case for
- * devm_pm_opp_of_add_table allowing us to combine this with devm_add_action_or_reset()
- * to create the self clean-up devm version. And luckily most of the base dev versions
- * exist allowing us to shim the rest as well. dev_pm_opp_get_level() can be handled by
- * manually parsing the dtb.
- *
- * CORE PROBLEM: dev_pm_opp_set_opp()
- *
- * HACK: There is a key feature about the downstream msm-bus API that's is almost given
- * no value and sometimes even viewed as a negative. Whenever it is invoked, it implicitly
- * drops the exact required voltage/corner vote onto the hardware power rails to support
- * that traffic level... Every. Single. Time. Letting us completely bypass the need to a
- * implement a complex GenPD voltage flipping sub-system.
- *
- * We can take this even further by parking every handle we grab in a devres node, so no
- * memory gets leaked whenever uninit/clean-up is called on the dev.
- *
- * IMPLEMENTATION:
- * By hanging a private devres node off each dev:
- * - We get per-dev storage without a global list, a lock, or new driver fields.
- * - Lifetime is the dev's lifetime, so teardown is automatic and correctly ordered.
- * - The node owns the clk and the icc paths outright, so there is exactly one place
- *   that releases them.
- *
- * NOTE: devres_set_drvdata isn't used here as it has a tendency to collide or get
- * overwritten when multiple devs try to register under the same platform context.
- * Instead the resources live in a devres node of our own, looked up with
- * devres_find() keyed on our private release function. That key is per-device AND
- * private to this shim, so the GPU, the GMU, the DPU and the DSI host each get an
- * independent slot that nothing outside opp.c can address, let alone overwrite.
- * The node is also what owns the clock and the interconnect paths, so unbind
- * releases them in the right order without a second bookkeeping structure.
- *
- * devm_pm_opp_of_add_table():
- * Parse the DT's of the dev and check if interconnects and clocks are present right after
- * dev_pm_opp_of_add_table() creates the opp-table.
- * - If both exist, store them both.
- * - If one or the other is missing, store whatever is present.
- * - If neither are present create the opp-table regardless and just return.
- *
- * dev_pm_opp_set_opp():
- * - Look up the dev's resource node.
- * - Extract the properties ("opp-hz", "opp-peak-kBps") for the requested OPP target node.
- *   (standard OPP operations)
- * - Scale all the clocks.
- * - Scale all the interconnects(msm-bus API handles the opp-level implicitly for us)
- * - Order the two the way mainline _set_opp() does: bandwidth first when scaling up,
- *   last when scaling down, so the part never runs fast on a bus that has not heard
- *   about it yet.
+ * See Documentation/core/opp.md for the rationale, the DT properties involved,
+ * and where behaviour deliberately differs from mainline.
  */
 
 #include <linux/pm_opp.h>
+#include <linux/version.h>
 #include "interconnector.h"
+
+/*
+ * The shrink list.
+ *
+ * Each entry is something this shim tracks only because the OPP core of the
+ * base kernel does not. The OPP subsystem picked these up one at a time on the
+ * way to 5.11, so as the floor rises the core starts carrying them itself, the
+ * matching read drops out, and the probe-time cache shrinks with it. Support
+ * for a range of base kernels is a matter of tracking less, not of tracking
+ * differently.
+ *
+ * This block is the only place the versions are written down - adjust here, not
+ * at the use sites. They are this shim's record and have only ever been
+ * exercised at the bottom of the range; verify against the target tree before
+ * raising the floor past one.
+ *
+ * Not listed, because it never needs a gate: the bandwidth properties are read
+ * off opp->np, and opp->np is kept by every version from 4.19 up. The core
+ * gained opp->bandwidth[] in 5.5 but no plain getter to switch to, so the DT
+ * read stays correct either way.
+ */
+#define OPP_CORE_HAS_LEVEL	(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
 
 /**
  * struct _opp_target - One OPP flattened into the values we actually commit
  * @freq: Rate from "opp-hz", in Hz
+ * @level: Performance level from "opp-level", 0 if undeclared
  * @avg_bw: Average bandwidth for every path, in bytes/sec, 0 if undeclared
  * @peak_bw: Peak bandwidth for every path, in bytes/sec, 0 if undeclared
  *
- * 4.19's struct dev_pm_opp carries the rate and nothing else we need - there is
- * no level field and no bandwidth array, both landed in 5.5 and later - so this
- * has to be re-read from opp->np on every transition. A copy kept in
- * _opp_resources::cur stands in for mainline's opp_table->current_opp.
+ * A zero @peak_bw means the OPP declared no bandwidth, which leaves any standing
+ * vote alone rather than dropping it to zero.
  */
 struct _opp_target {
 	unsigned long freq;
+	u32 level;
 	u64 avg_bw;
 	u64 peak_bw;
 };
 
 /**
  * struct _opp_resources - Hardware handles owned by one device's OPP shim
- * @clk: Captured clock handle if present in device tree
+ * @clk: Clock to scale, NULL if the device has none
  * @clk_name: con_id recorded by devm_pm_opp_set_clkname(), NULL for index 0
- * @clk_enabled: Runtime state variable tracking clock status
+ * @clk_enabled: Whether the shim currently holds an enable on @clk
  * @populated: Set once devm_pm_opp_of_add_table() has claimed the handles
  * @cur: Last target committed by dev_pm_opp_set_opp(), all zero if none
- * @max_paths: Interconnect lanes this node was sized for, from DT
- * @num_paths: Interconnect lanes actually acquired, <= @max_paths
- * @paths: Flexible array mapping modern OPP votes to underlying interconnect nodes
+ * @cache: Every OPP in the table, flattened at probe, ascending by @freq
+ * @cache_count: Entries in @cache
+ * @max_paths: Interconnect paths this node was sized for, from DT
+ * @num_paths: Interconnect paths actually acquired, <= @max_paths
+ * @paths: Flexible array of acquired interconnect paths
  *
- * This stands in for mainline's struct opp_table, which we cannot borrow: it is
- * defined in drivers/opp/opp.h with no exported accessor, so it can be neither
- * held nor extended from out here. Same role though - it is what _set_opp()
- * takes so the public entry point stays a lookup and a delegate.
- *
- * It is the payload of a devres node whose release function doubles as its
- * lookup key; see the discussion above. The node owns @clk and @paths outright,
- * so its release is the single teardown point for both.
- *
- * NOTE: @cur is what lets us mirror mainline _set_opp() ordering (bandwidth
- * first when scaling up, last when scaling down) and roll a half-applied
- * transition back to the previous vote instead of to zero.
+ * Local stand-in for mainline's struct opp_table, which cannot be borrowed from
+ * a module. Payload of a devres node whose release function doubles as its
+ * lookup key; the node owns @clk and @paths outright, so its release is the
+ * single teardown point for both.
  */
 
 struct _opp_resources {
@@ -125,21 +84,73 @@ struct _opp_resources {
 
 	struct _opp_target cur;
 
+	struct _opp_target *cache;
+	u32 cache_count;
+
 	u32 max_paths;
 	u32 num_paths;
 	struct icc_path *paths[];
 };
 
+/**
+ * devm_pm_opp_of_add_table() - Add the device's OPP table and claim its handles
+ * @dev: Device to add the table for
+ *
+ * As mainline. Additionally resolves the clock and the interconnect paths the
+ * table's OPPs refer to; all of it is released at unbind.
+ *
+ * Call after devm_pm_opp_set_clkname() if the clock to scale is not index 0.
+ *
+ * Return: 0 on success, negative errno otherwise.
+ */
 int devm_pm_opp_of_add_table(struct device *dev);
 
+/**
+ * dev_pm_opp_set_opp() - Apply an operating point
+ * @dev: Device to apply it to
+ * @opp: OPP to apply, or NULL to drop every vote
+ *
+ * Scales bandwidth, voltage and clock in mainline's order: bandwidth first when
+ * scaling up, last when scaling down. A failed transition is unwound to the
+ * previous vote.
+ *
+ * Return: 0 on success - including when @dev has no handles to scale - and a
+ * negative errno if the transition failed and was unwound.
+ */
 int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp);
 
+#if !OPP_CORE_HAS_LEVEL
+/**
+ * dev_pm_opp_get_level() - Read an OPP's "opp-level"
+ * @opp: OPP to read
+ *
+ * Return: The level, or 0 if the OPP does not declare one.
+ */
 unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp);
+#endif
 
+/**
+ * devm_pm_opp_set_supported_hw() - Managed dev_pm_opp_set_supported_hw()
+ * @dev: Device to set the supported hardware versions for
+ * @versions: Array of hierarchy version values
+ * @count: Number of entries in @versions
+ *
+ * Return: 0 on success, negative errno otherwise.
+ */
 int devm_pm_opp_set_supported_hw(struct device *dev,
 				 const u32 *versions,
 				 unsigned int count);
 
+/**
+ * devm_pm_opp_set_clkname() - Managed dev_pm_opp_set_clkname()
+ * @dev: Device to set the clock name for
+ * @name: con_id of the clock, NULL for index 0
+ *
+ * Also records @name so a subsequent devm_pm_opp_of_add_table() scales that
+ * clock. Has no effect on which clock is scaled if called after it.
+ *
+ * Return: 0 on success, negative errno otherwise.
+ */
 int devm_pm_opp_set_clkname(struct device *dev,
 			    const char *name);
 

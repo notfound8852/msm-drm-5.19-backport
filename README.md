@@ -28,10 +28,10 @@ Kernel version: `4.19.255`
 But most importantly, the panel lights up!
 
 ### 🟢 GPU & GMU Status
-* **GMU Register Access:** **RESOLVED.** Overcame the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
+* **GMU Register Access:** **RESOLVED.** Fixed the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
 * **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
 * **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
-* **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (alomg with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
+* **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (along with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
 
 ### 🟢 Rendering:
 * **kmscube:** Works.
@@ -43,7 +43,7 @@ But most importantly, the panel lights up!
 
 **Note:** This is gonna be a bit of a history lesson.
 
-For over a decade, developers and open-source communities have tried to run standard GNU/Linux on modern smartphone hardware. Historically, this has divided the community into two camps, each representing a massive compromise.
+For over a decade at this point, developers and open-source communities or as I like to refer to them, "The Linux-on-Android enthusiast" community have tried and succeeded (naturally) on running standard GNU/Linux on mobile hardware. Historically, this has divided the community into two camps, each representing a massive compromise.
 
 ## The History
 
@@ -95,7 +95,7 @@ If you do want to fix the uninit flow, go check out my SDE patches. It does *exa
 ## Key Features
 
 ### The Shim Layer (`msm/shims/`)
-The core of this project is a sophisticated compatibility layer that bridges the gap between modern kernel APIs and downstream vendor implementations.
+The core of this project is a compatibility layer that bridges the gap between modern kernel APIs and downstream vendor implementations.
 
 *   **Interconnect (ICC) Shim:** Provides a 1:1 mapping of modern `of_icc_get()` and `icc_set_bw()` APIs onto the downstream `msm_bus_scale` framework. Supports both synchronous and asynchronous bandwidth scaling.
 *   **OPP (Operating Performance Points) Shim:** A custom implementation of the modern OPP layer. It unifies frequency scaling (`clk_set_rate`) and interconnect bandwidth voting into a single `dev_pm_opp_set_opp()` call, matching 5.19 behavior.
@@ -165,7 +165,7 @@ Now, while this is all sunshine and rainbows I do have two points:
 
 1.  Copy the `msm/` directory into `drivers/gpu/drm/msm/`.
 2.  Backport the mainline MDSS/DPU Device Tree (DT) for your SoC..
-	- You can use mine as a reference check: `dtbs/sdm845-oneplus-common.dtsi`-that's the main backport. `dtbs/sdm845-oneplus-enchilada.dtsi` and `dtbs/sdm845-oneplus-fajita.dtsi` build upon that.
+	- You can use mine as a reference check: [`dtbs/sdm845-oneplus-common.dtsi`](dtbs/sdm845-oneplus-common.dtsi). [`dtbs/sdm845-oneplus-enchilada.dts`](dtbs/sdm845-oneplus-enchilada.dts) and [`dtbs/sdm845-oneplus-fajita.dts`](dtbs/sdm845-oneplus-fajita.dts) are build upon that.
 	- **Quick FYI:** The `dtbs` folder in this repo is direct copy of the one from EdwinMoq's kernel repo.
 3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
 4. Copy the `scheduler/` directory directly into `drivers/gpu/drm/` and append the compilation target to `drivers/gpu/drm/Makefile`:
@@ -180,6 +180,7 @@ config DRM_SCHED
 ```
 
 ## 📄 Technical Documentation
-* See [setup.md](setup.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
-* See [fixes.md](fixes.md) for a deep dive into specific fixes, implementation, hacks and SMMU fault analysis.
-* See [SHOWCASE.md](SHOWCASE.md) for the userspace proof — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.
+* See [README.md](msm/Documentation/README.md) for explanations on the shims, [FIXES.md](msm/Documentation/FIXES.md) for a deep dive into specific fixes directly related to the MSM driver.
+* See [SETUP.md](msm/Documentation/SETUP.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
+## Proof
+* See [SHOWCASE.md](SHOWCASE.md) for the userspace side of things, logs, images — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.

@@ -1,38 +1,22 @@
 #ifndef INTERCONNECTOR_H
 #define INTERCONNECTOR_H
 
-/**
+/*
+ * Interconnect shim - the mainline icc_* API the MSM driver calls, backed by
+ * downstream msm-bus.
  *
- * Upstream/Mainline completely transitioned from the legacy msm-bus API to the
- * newly refractored interconnects subsystem introduced in >= Linux 5.1. This allows
- * for clean parsing. "interconnects" property and "interconnect-names"
- * (e.g., "mdp0-mem") are parsed dynamically from the Device Tree via of_icc_get()
- * This then allows the driver to scale each an every path individually allowing for
- * both synchronous and asynchronous scalling.
+ * mainline never had msm-bus; it had no bandwidth abstraction at all until the
+ * interconnect framework arrived in 5.1. So a 5.19 driver on a 4.19 CAF base is
+ * calling an API the platform does not have, against a platform API the driver
+ * has never heard of. This bridges the two: icc_set_bw() is msm_bus_scale_
+ * update_bw(), and paths come from an "interconnects" property.
  *
- * PROBLEM: Downstream < 5.1 kernels completely lacks this framework relying on
- * verbose DTB multi-vector arrays and hardcoded "expected" bandwidth levels in
- * order to satisfy msm_bus_scale_client_update_request(). which then generates a
- * client handle before finally allowing you to select a "case" from the hardcoded
- * cases. The obvious issue is; dpu_core_perf.c calculates new B/W rates at runtime...
- * We can't predict what case it's going to want and when.
+ * That property is NOT the mainline binding. Mainline uses
+ * <&provider MASTER &provider SLAVE>; there is no provider node here, so this
+ * shim expects two bare cells per path holding the msm-bus src and dst IDs
+ * directly. "interconnect-names" is not supported - lookup is by index.
  *
- * NOTE: There does exist a kernel API for downstream that allows for the same kind of
- * control going all the way back to the days msm-bus was first added around Linux 3.x.
- * It allows for both synchronous and asynchronous scalling on individual paths. The
- * only problem is that it expects us to pass the "src" and "dst" when invoking it. In
- * other words, it's both extra labor and would require us to hardcode these "magic"
- * msm-bus specific numbers(again) which destroys any potential for multi-SoC portability
- * as I am sure msm-bus values can differ across KVERSIONS... .~.
- *
- * SOLUTION: We can manually parse the DTBs in our shim function of_icc_get() and
- * extract the <src dst> tuple directly from a modern looking "interconnects"
- * property.
- *
- * This then allows performance logic (like dpu_core_perf.c) to stream raw floor/
- * ceiling bandwidth allocations directly through icc_set_bw() which is just full-on
- * a wrapper for msm_bus_scale_update_bw(), keeping the memory bus saturated enough
- * to prevent catastrophic panel underflows.
+ * See Documentation/core/interconnector.md.
  */
 
 #include <linux/msm-bus.h>
@@ -58,30 +42,63 @@ struct devm_icc_closure {
     struct icc_path *paths[];
 };
 
-/**
- * Modern interconnect drivers handle absolute bytes/sec values natively.
- * These helpers translate throughput directly to the raw values expected
- * by the underlying downstream scaling engine.
+/*
+ * Bandwidth is in bytes/sec, as mainline. Same macros.
  */
-#define KBps_to_icc(x) ((u64)(x) * 1000ULL)
 #define MBps_to_icc(x) ((u64)(x) * 1000ULL * 1000ULL)
+#define KBps_to_icc(x) ((u64)(x) * 1000ULL)
 #define Bps_to_icc(x) (u64)(x)
 
+/**
+ * of_icc_get() - Acquire every path named in the device's "interconnects"
+ * @dev: Device whose node carries the property
+ * @paths: Caller-provided array, filled in device tree order
+ * @num_paths: Out, number of paths acquired; set to 0 on failure
+ *
+ * CALLER MUST SIZE @paths. This writes one entry per <src dst> pair in the
+ * property without knowing the array's capacity - derive the count from the
+ * same property first, or the write runs off the end.
+ *
+ * On failure every acquired path is released and @paths is cleared, so the
+ * array is safe to hand to a teardown path either way.
+ *
+ * Return: 0 on success. -ENODEV if the property is absent, -EINVAL if its
+ * length is not a whole number of <src dst> pairs.
+ */
 int of_icc_get(struct device *dev,
                  struct icc_path **paths,
                  u32 *num_paths);
 
+/**
+ * icc_set_bw() - Vote bandwidth on a path
+ * @path: Path to vote on
+ * @ab: Average bandwidth, bytes/sec
+ * @ib: Peak bandwidth, bytes/sec
+ *
+ * Both zero removes the vote.
+ *
+ * Return: 0 on success, negative errno otherwise.
+ */
 int icc_set_bw(struct icc_path *path, u64 ab, u64 ib);
 
+/**
+ * icc_put() - Drop a path's vote and release it
+ * @path: Path to release, may be NULL
+ */
 void icc_put(struct icc_path *path);
 
-
 /**
- * NOTE: The managed variant, for consumers that want the paths released at
- * unbind without owning the teardown themselves. The OPP shim used to be the
- * one caller; it now parks the paths in its own devres node and releases them
- * there, so it uses plain of_icc_get(). Kept because it is the correct thing
- * to reach for from a probe path that has nowhere else to put the handles.
+ * devm_of_icc_get() - Managed of_icc_get()
+ * @dev: Device whose node carries the property
+ * @paths: Caller-provided array, filled in device tree order
+ * @num_paths: Out, number of paths acquired; set to 0 on failure
+ *
+ * Same contract as of_icc_get(), plus release at unbind. For probe paths with
+ * nowhere else to keep the handles; a caller that already owns a devres node
+ * should acquire into that instead, so the handles have one owner rather than
+ * two records.
+ *
+ * Return: as of_icc_get(), or -ENOMEM.
  */
 int devm_of_icc_get(struct device *dev,
                       struct icc_path **paths,

@@ -2,45 +2,50 @@
 
 ## Backports (present in the `shims/` directory):
 
-* `drm_plane_create_blend_mode_property` backported! inside `core/drm_missing_func.c` along with a bunch of other helpers to make it all work.
+* `drm_plane_create_blend_mode_property` backported! inside [`core/drm_missing_func.c`](../shims/core/drm_missing_func.c) along with a bunch of other helpers to make it all work.
 * `drm_dsc_helpers` were backported from 5.19.
-* `drm_syncobj` and all it's helpers were backported from 5.19.
+* `drm_syncobj` and all its helpers were backported from 5.19.
 
-(btw, if you wanna see the tree structure of the `shims` directory check `shims/NOTE.md`)
+(btw, if you wanna see the tree structure of the `shims` checkout [`../shims/NOTE.md`](../shims/NOTE.md))
 
 ---
 
 ## FIXES/added funcs to MSM:
 
 **NOTE:** The detailed explanations are in the actual files.
-This is me completely disregarding the amount of version checks in the driver itself. So stuff like:
-**get_vblank_timestamp and get_scanout_position: ** For Pre 5.13 versions are in `msm_drv.c`, search for `msm_driver_get_scanout_position` and `msm_driver_get_vblank_timestamp`
-**GEM Prime:** `gem_prime_import` and `gem_prime_export` added to `msm_drv.c` in `msm_driver`
-**Version checks around newer `const static struct` vs older `static struct`**
+
+Additionally, here in this file I am completely disregarding the amount of version checks in the driver itself. So stuff like:
+
+* **get_vblank_timestamp and get_scanout_position:** For Pre 5.13 versions are in `msm_drv.c`, search for [`msm_driver_get_scanout_position`](../msm_drv.c#L87) and [`msm_driver_get_vblank_timestamp`](../msm_drv.c#L101)
+* **GEM Prime:** [`gem_prime_import`](../msm_drv.c#L1134) and [`gem_prime_export`](../msm_drv.c#L1133) added to `msm_drv.c` in `msm_driver`
+* **Version checks around newer `const static struct` vs older `static struct`**
 ...
--is all disregared here. 
+
+-is all disregarded here. Otherwise this file would quickly turn into a novel.
+
+---
 
 **Unmanaged CX domain:**
-* In `adreno/a6xx_gmu.c` support for CX domain was backported from 6.x. Check `a6xx_gmu_init` flow.
+* In `adreno/a6xx_gmu.c` support for CX domain was backported from 6.x. Check [`a6xx_gmu_init`](../adreno/a6xx_gmu.c#L1563) flow.
 
 **Why?:** If we don't let the GMU manage the CX rail it will eat through battery life. This patch is from >=6.6 versions.
 
 **Module insmod from userspace:**
-* In msm_mdss.c function name `inline int dev_gdsc_enable(struct platform_device *pdev)`
-	- used in `msm_mdss_init` in file `msm_mdss.c`
-	- used in `a6xx_gmu_init` in file `adreno/a6xx_gmu.c`
+* In msm_mdss.c function name [`inline int dev_gdsc_enable(struct platform_device *pdev)`](../msm_mdss.c#L58)
+	- used in [`msm_mdss_init`](../msm_mdss.c#L368) in file `msm_mdss.c`
+	- used in [`a6xx_gmu_init`](../adreno/a6xx_gmu.c#L1563) in file `adreno/a6xx_gmu.c`
 
 **Why?:** To mimic bootloader hand-off.
 
-**Aperture remove conflicing framebuffers:**
-* In msm_fbdev.c function name `static inline int msm_aperture_remove_framebuffers()`
+**Aperture remove conflicting framebuffers:**
+* In msm_fbdev.c function name [`static inline int msm_aperture_remove_framebuffers()`](../msm_fbdev.c#L162)
 
 **Why?:** We need to remove the existing framebuffer so our DRM/KMS FB can take proper control over it.
 
 **SMMU; NULL TTBR0 and TTBR1 Context faults**
-* In `disp/dpu_kms.c` function `_dpu_kms_mmu_init`.
+* In `disp/dpu1/dpu_kms.c` function [`_dpu_kms_mmu_init`](../disp/dpu1/dpu_kms.c#L1013).
 	- Domain is handled differently for downstream. A fix has been set up so if `iommu_get_domain_for_dev` fails you immediately get the upstream fallback.
-	- Similar changes to `a6xx_gmu.c`, `a6xx_gpu.c` and `adreno_gpu.c`. Search for `iommu_get_domain_for_dev`-you'll see it.
+	- Similar changes to `a6xx_gmu.c`, `a6xx_gpu.c` and `adreno_gpu.c`. Search for `iommu_get_domain_for_dev`-you'll see it ([`a6xx_gmu.c#L1206`](../adreno/a6xx_gmu.c#L1206), [`a6xx_gpu.c#L1701`](../adreno/a6xx_gpu.c#L1701), [`adreno_gpu.c#L215`](../adreno/adreno_gpu.c#L215)).
 
 **Why?:** If we leave it as is and the downstream driver already set the context for us-we will overwrite the table with a NULL table causing:
 ```
@@ -61,19 +66,19 @@ This is me completely disregarding the amount of version checks in the driver it
 ```
 
 **performance state votes specifically for 0:**
-* In `dsi/dsi_host.c` function `dsi_link_clk_disable_6g` added checks for `performance state vote`
-* In `disp/dpu_kms.c` function `dpu_runtime_suspend` added checks for `performance state vote`
+* In `dsi/dsi_host.c` function [`dsi_link_clk_disable_6g`](../dsi/dsi_host.c#L638) added checks for `performance state vote`
+* In `disp/dpu1/dpu_kms.c` function [`dpu_runtime_suspend`](../disp/dpu1/dpu_kms.c#L1317) added checks for `performance state vote`
 
 **Why?:** The downstream OPP helpers don't understand what performance lvl `0` means.
 
 **pixel_clk_src timings:**
-* In `dsi/dsi_host.c` function `dsi_link_clk_set_rate_6g`
+* In `dsi/dsi_host.c` function [`dsi_link_clk_set_rate_6g`](../dsi/dsi_host.c#L475)
 
 **Why?** For pre 5.11 versions, we avoid `dev_pm_opp_set_rate()` for `clk_set_rate()` in order to NOT get hit with rounding errors.
 
 
 **Panel timeout issue specific to ONLY len 8 bytes:**
-* In `dsi/dsi_host.c` search for function `static int msm_dsi_create_packet` it acts as a replacement for mipi_dsi_create_packet()
+* In `dsi/dsi_host.c` search for function [`static int msm_dsi_create_packet`](../dsi/dsi_host.c#L1267) it acts as a replacement for mipi_dsi_create_packet()
 
 **Why?:** To understand why, we need to learn Android CAF behavior.
 
@@ -84,7 +89,7 @@ On Qualcomm Snapdragon platforms, **all DSI command execution utilizes the Comma
 
 The CPU writes the packet to system RAM, maps it via the Display SMMU domain over the high-speed AXI interconnect bus (`DISP_CC_MDSS_AXI`), and tells the DMA engine to pull it. The driver then waits for a hardware interrupt signaling completion.
 
-During testing, short writes succeeded, but long writes hit an immediate, unrecoverable `-ETIMEDOUT` hang (`STATUS0` stuck at `CMD_DMA_BUSY`).
+During testing, short writes succeeded, but long writes hung (`STATUS0` stuck at `CMD_DMA_BUSY`) for the full `200ms` before timing out. `-ETIMEDOUT`
 
 #### The Root Cause: Mainline vs Android CAF Array Layout
 The upstream 5.19 MSM driver relies on standard Linux core definitions where the MIPI DSI header bytes are arranged sequentially starting at index `0`. However, downstream Android CAF kernels **flipped the byte ordering** of the packet header inside `mipi_dsi_create_packet()`:
@@ -95,7 +100,8 @@ The upstream 5.19 MSM driver relies on standard Linux core definitions where the
 | **Android CAF 4.19** | Word Count LSB / Param 0 | Word Count MSB / Param 1 | Data ID (DI) |
 
 Because the upstream `dsi_cmd_dma_add()` packed these bytes into the MSM hardware command DWORD assuming mainline ordering, the CAF core helper scrambled the layout. Short writes survived because the DSI engine ignores the Word Count fields for fixed-length short packets. Long writes, however, received a giant garbage Word Count value (e.g., `0x3900`), causing the DMA hardware engine to loop indefinitely waiting for a massive payload that didn't exist.
-It's really about understanding the problem, because the fix itself is trivial. All it takes is a simple shim (`msm_dsi_create_packet`) which creates the packet as intended without needing to modify core CAF function.
+It's really about understanding the problem, because the fix itself is trivial.
+All it takes is a simple shim ([`msm_dsi_create_packet`](../dsi/dsi_host.c#L1267)) which creates the packet as intended without needing to modify core CAF function.
 
 ---
 
@@ -140,7 +146,7 @@ We ensured the platform's peripheral image loader remains fully operational at b
 
 **Why?:** 4.19's in-tree `drm_sched` was too old to map the modern engine job model onto — it would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. Backporting the whole thing is what took the GPU from "idles but doesn't work" to *actually* rendering.
 
-**MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function `submit_fence_sync` we skip sync if userspace wants to opt out..
+**MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function [`submit_fence_sync`](../msm_gem_submit.c#L452) we skip sync if userspace wants to opt out..
 
 **Why?:** Modern Mesa expectations...
 
@@ -166,6 +172,6 @@ Let's just assume that file descriptors for the same file probablyshare the file
 
 **Why?:** Nobody wants to see, `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
 
-**msm_sched_job_add_implicit_dependencies:** Added to `msm_gem_submit.c` as a 4.19-5.3-compatible reimplementation of upstream's `drm_sched_job_add_implicit_dependencies`.
+**msm_sched_job_add_implicit_dependencies:** Added to `msm_gem_submit.c` (function [`msm_sched_job_add_implicit_dependencies`](../msm_gem_submit.c#L381)) as a 4.19-5.3-compatible reimplementation of upstream's `drm_sched_job_add_implicit_dependencies`.
 
 **Why?:** Upstream's helper (5.16+) assumes `drm_gem_object` embeds `->resv` directly and walks it with `dma_resv_iter`/`dma_resv_usage_rw`. On 4.19, `msm_gem_object` still carries its own `struct reservation_object`, and fences live behind the legacy `fence_excl`/`fence` (shared list) fields with manual RCU handling — there's no iterator to call. Without this, implicit sync (exclusive fence always a dep, shared fences only on write) just doesn't happen, which bites you the moment two jobs touch the same BO without explicit fencing.

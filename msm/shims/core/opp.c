@@ -2,6 +2,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/version.h>
 
 #include "linux/opp.h"
 
@@ -41,6 +42,7 @@ static void _opp_res_release(struct device *dev, void *data)
 		clk_put(res->clk);
 	}
 
+	kfree(res->cache);
 	kfree(res->clk_name);
 }
 
@@ -101,18 +103,17 @@ static struct _opp_resources *_get_opp_res(struct device *dev)
 /* Function helpers */
 
 /*
- * Flatten @opp into what we can actually commit. Mainline reads opp->rate and
- * opp->bandwidth[] straight out of the OPP; 4.19 only has the rate, so the
- * bandwidth comes back off the node every time.
+ * Flatten @opp into what we can actually commit. Mainline reads opp->rate,
+ * opp->level and opp->bandwidth[] straight out of the OPP; whatever this base
+ * kernel's core does not carry comes back off opp->np instead. See the shrink
+ * list in opp.h.
  *
- * An OPP that declares no bandwidth resolves to a zero peak, which is the
- * signal to leave whatever vote is standing alone - these tables mix rate-only
- * and rate-plus-bandwidth nodes, and collapsing to zero on the former starves
- * the bus mid-stream.
+ * @freq is passed in because every caller already has it.
  */
-static void _read_opp_target(struct _opp_resources *res,
-			     struct dev_pm_opp *opp,
-			     struct _opp_target *target)
+static void _parse_opp_target(struct _opp_resources *res,
+			      struct dev_pm_opp *opp,
+			      unsigned long freq,
+			      struct _opp_target *target)
 {
 	struct device_node *np;
 	u32 peak_kbps = 0;
@@ -120,7 +121,8 @@ static void _read_opp_target(struct _opp_resources *res,
 
 	memset(target, 0, sizeof(*target));
 
-	target->freq = dev_pm_opp_get_freq(opp);
+	target->freq = freq;
+	target->level = dev_pm_opp_get_level(opp);
 
 	if (!res->num_paths)
 		return;
@@ -138,26 +140,103 @@ static void _read_opp_target(struct _opp_resources *res,
 		return;
 
 	target->peak_bw = KBps_to_icc(peak_kbps);
-	target->avg_bw = KBps_to_icc(avg_kbps ?
-				     avg_kbps :
-				     peak_kbps);
+	target->avg_bw = KBps_to_icc(avg_kbps);
 }
 
 /*
- * Commit @target's bandwidth to every path. A path that rejects the vote leaves
- * the ones before it already updated, so walk back and restore them to the
- * last vote that was known good rather than dropping them to zero.
+ * Flatten the whole table once, at probe.
+ *
+ * dev_pm_opp_find_freq_ceil() walks available OPPs in ascending order, which is
+ * the only way to enumerate them from outside the core, and conveniently leaves
+ * the cache sorted for lookup. OPPs filtered out by "opp-supported-hw" are
+ * skipped, which is what we want - they can never be applied.
+ *
+ * Failing to build the cache is not fatal. A miss falls back to reading the
+ * node, so the shim still works, just as it did before the cache existed.
  */
-static int _set_opp_bw(struct _opp_resources *res,
-		       const struct _opp_target *target)
+static void _build_opp_cache(struct device *dev, struct _opp_resources *res)
+{
+	struct dev_pm_opp *opp;
+	unsigned long freq = 0;
+	int count;
+	u32 i = 0;
+
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count <= 0)
+		return;
+
+	res->cache = kmalloc_array(count, sizeof(*res->cache), GFP_KERNEL);
+	if (!res->cache)
+		return;
+
+	while (i < (u32)count) {
+		opp = dev_pm_opp_find_freq_ceil(dev, &freq);
+		if (IS_ERR(opp))
+			break;
+
+		_parse_opp_target(res, opp, freq, &res->cache[i++]);
+
+		dev_pm_opp_put(opp);
+
+		freq++;
+	}
+
+	res->cache_count = i;
+}
+
+/* Ascending by freq, and frequencies are unique in a table, so bisect. */
+static const struct _opp_target *_cached_target(struct _opp_resources *res,
+						unsigned long freq)
+{
+	u32 lo = 0;
+	u32 hi = res->cache_count;
+
+	while (lo < hi) {
+		u32 mid = lo + (hi - lo) / 2;
+
+		if (res->cache[mid].freq == freq)
+			return &res->cache[mid];
+
+		if (res->cache[mid].freq < freq)
+			lo = mid + 1;
+		else
+			hi = mid;
+	}
+
+	return NULL;
+}
+
+static void _read_opp_target(struct _opp_resources *res,
+			     struct dev_pm_opp *opp,
+			     struct _opp_target *target)
+{
+	unsigned long freq = dev_pm_opp_get_freq(opp);
+	const struct _opp_target *hit = _cached_target(res, freq);
+
+	if (hit) {
+		*target = *hit;
+		return;
+	}
+
+	/*
+	 * Not in the table we walked at probe - no cache, or an OPP that has
+	 * been enabled since. Read it live.
+	 */
+	_parse_opp_target(res, opp, freq, target);
+}
+
+/*
+ * Raw vote. A path that rejects it leaves the ones before it already updated,
+ * so walk back and restore them to the last vote that was known good rather
+ * than dropping them to zero.
+ */
+static int _vote_bw(struct _opp_resources *res, u64 avg_bw, u64 peak_bw)
 {
 	u32 i;
 	int ret;
 
 	for (i = 0; i < res->num_paths; i++) {
-		ret = icc_set_bw(res->paths[i],
-				 target->avg_bw,
-				 target->peak_bw);
+		ret = icc_set_bw(res->paths[i], avg_bw, peak_bw);
 		if (ret) {
 			while (i--)
 				icc_set_bw(res->paths[i],
@@ -167,10 +246,53 @@ static int _set_opp_bw(struct _opp_resources *res,
 		}
 	}
 
-	res->cur.avg_bw = target->avg_bw;
-	res->cur.peak_bw = target->peak_bw;
+	res->cur.avg_bw = avg_bw;
+	res->cur.peak_bw = peak_bw;
 
 	return 0;
+}
+
+/*
+ * Transition vote. An OPP that declares no bandwidth leaves whatever vote is
+ * standing alone - these tables mix rate-only and rate-plus-bandwidth nodes,
+ * and collapsing to zero on the former starves the bus mid-stream. The disable
+ * path wants zero to mean zero, so it goes through _vote_bw() instead.
+ */
+static int _set_opp_bw(struct _opp_resources *res,
+		       const struct _opp_target *target)
+{
+	if (!target->peak_bw)
+		return 0;
+
+	return _vote_bw(res, target->avg_bw, target->peak_bw);
+}
+
+/*
+ * The corner vote.
+ *
+ * Mainline routes "opp-level" to a power domain: dev_pm_opp_set_opp() hands the
+ * level to genpd, which asks rpmhpd for the corner. None of that exists here -
+ * rpmhpd and the required-opps plumbing both land in 5.10.
+ */
+static int _set_opp_voltage(struct device *dev,
+			    const struct _opp_target *target)
+{
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+	/*
+	 * HACK: We can fully skip voltage on Downstream version that use the
+	 * msm-bus API. Whenever _vote_bw is invoked, the underlying msm-bus
+	 * API implicitly drops the exact voltage/corner vote onto the hardware
+	 * rails bypassing the upstream genpd framework entirely.
+	 */
+	return 0;
+#else
+	if (target->level)
+		dev_warn_once(dev,
+			      "opp-level %u ignored: no genpd corner voting on this kernel\n",
+			      target->level);
+
+	return 0;
+#endif
 }
 
 /*
@@ -219,7 +341,7 @@ static int _disable_opp(struct _opp_resources *res)
 {
 	const struct _opp_target off = { };
 
-	_set_opp_bw(res, &off);
+	_vote_bw(res, 0, 0);
 	_disable_opp_clk(res);
 
 	res->cur = off;
@@ -254,18 +376,26 @@ static int _set_opp(struct device *dev,
 	old = res->cur;
 	scaling_down = old.freq && target.freq < old.freq;
 
-	if (target.peak_bw && !scaling_down) {
+	if (!scaling_down) {
 		ret = _set_opp_bw(res, &target);
 		if (ret)
 			goto err;
+
+		ret = _set_opp_voltage(dev, &target);
+		if (ret)
+			goto rollback_bw;
 	}
 
 	ret = _set_opp_clk(res, target.freq, &enabled_here);
 	if (ret)
 		goto rollback_bw;
 
-	if (target.peak_bw && scaling_down) {
+	if (scaling_down) {
 		ret = _set_opp_bw(res, &target);
+		if (ret)
+			goto rollback_clk;
+
+		ret = _set_opp_voltage(dev, &target);
 		if (ret)
 			goto rollback_clk;
 	}
@@ -284,7 +414,7 @@ rollback_clk:
 	}
 
 rollback_bw:
-	if (target.peak_bw && !scaling_down)
+	if (!scaling_down)
 		_set_opp_bw(res, &old);
 
 err:
@@ -367,6 +497,9 @@ int devm_pm_opp_of_add_table(struct device *dev)
 		}
 	}
 
+	/* Last: _parse_opp_target() reads num_paths to decide on bandwidth. */
+	_build_opp_cache(dev, res);
+
 	res->populated = true;
 
 	return 0;
@@ -389,6 +522,7 @@ int dev_pm_opp_set_opp(struct device *dev,
 	return _set_opp(dev, res, opp);
 }
 
+#if !OPP_CORE_HAS_LEVEL
 unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
 {
 	struct device_node *np;
@@ -406,6 +540,7 @@ unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
 
 	return level;
 }
+#endif
 
 int devm_pm_opp_set_supported_hw(struct device *dev,
 				 const u32 *versions,
