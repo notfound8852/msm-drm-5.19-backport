@@ -88,7 +88,6 @@ struct msm_mdss {
 	u32 num_paths;
 };
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
 					    struct msm_mdss *msm_mdss)
 {
@@ -108,11 +107,7 @@ static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
 
 	return 0;
 }
-#else
-static int msm_mdss_parse_data_bus_icc_path(struct device *dev, struct msm_mdss *msm_mdss) {
-    return of_icc_get(dev, msm_mdss->path, &msm_mdss->num_paths);
-}
-#endif
+
 static void msm_mdss_put_icc_path(void *data)
 {
 	struct msm_mdss *msm_mdss = data;

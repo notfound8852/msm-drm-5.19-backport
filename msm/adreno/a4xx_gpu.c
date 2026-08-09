@@ -648,10 +648,8 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	struct msm_gpu *gpu;
 	struct msm_drm_private *priv = dev->dev_private;
 	struct platform_device *pdev = priv->gpu_pdev;
-#ifdef CONFIG_QCOM_OCMEM
 	struct icc_path *ocmem_icc_path;
 	struct icc_path *icc_path;
-#endif
 	int ret;
 
 	if (!pdev) {
@@ -700,7 +698,7 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 			goto fail;
 		}
 	}
-#ifdef CONFIG_QCOM_OCMEM
+
 	icc_path = devm_of_icc_get(&pdev->dev, "gfx-mem");
 	if (IS_ERR(icc_path)) {
 		ret = PTR_ERR(icc_path);
@@ -723,7 +721,7 @@ struct msm_gpu *a4xx_gpu_init(struct drm_device *dev)
 	 */
 	icc_set_bw(icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
 	icc_set_bw(ocmem_icc_path, 0, Bps_to_icc(gpu->fast_rate) * 8);
-#endif
+
 	return gpu;
 
 fail:

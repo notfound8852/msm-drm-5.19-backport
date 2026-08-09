@@ -98,6 +98,7 @@
 
 			interconnects = <MSM_BUS_MASTER_MDP_PORT0 MSM_BUS_SLAVE_EBI_CH0>,
 					<MSM_BUS_MASTER_MDP_PORT1 MSM_BUS_SLAVE_EBI_CH0>;
+			interconnect-names = "mdp0-mem", "mdp1-mem";
 
 			iommus = <&apps_smmu 0x880 0x8>,
 					 <&apps_smmu 0xc80 0x8>;
@@ -342,6 +343,7 @@
 			qcom,gmu = <&mainline_gmu>;
 
 			interconnects = <MSM_BUS_MASTER_GRAPHICS_3D MSM_BUS_SLAVE_EBI_CH0>;
+			interconnect-names = "gfx-mem";
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";
@@ -411,13 +413,14 @@
 				   <&clock_gcc GCC_GPU_CFG_AHB_CLK>;
 			clock-names = "bus", "iface";
 			/**
-			 * HACK: Instead of backporting a new SMMU implementation
-			 * just so downstream 4.19 can manage CXPD voting from
-			 * the smmu driver. We can just wire it to the expected
-			 * regulator and it will be managed.
+			 * CX must be voted through the same genpd the GMU uses.
+			 * The downstream gpu_cx_gdsc regulator drives the same
+			 * GDSCR with its own refcount, so arm_smmu_unmap()'s
+			 * power_off would SW_COLLAPSE CX under a live GMU.
+			 * The CAF smmu has no runtime PM, so platform probe's
+			 * genpd attach keeps CX on for as long as it's bound.
 			 */
-			qcom,regulator-names = "vdd";
-			vdd-supply = <&gpu_cx_gdsc>;
+			power-domains = <&clock_gpucc GPU_CX_GDSC>;
 		};
 
 		mainline_gmu: gmu@506a000 {
@@ -646,6 +649,13 @@ DISABLE_NODE(msm_gpu);
 DISABLE_NODE(gpubw);
 DISABLE_NODE(kgsl_msm_iommu);
 DISABLE_NODE(gmu);
+
+/* Downstream GDSC regulators alias the gpucc genpd GDSCs (same GDSCR).
+ * With kgsl gone nothing consumes them, and regulator late cleanup
+ * would collapse CX/GX behind genpd's back.
+ */
+DISABLE_NODE(gpu_cx_gdsc);
+DISABLE_NODE(gpu_gx_gdsc);
 
 /* NOTE: We leave pil_gpu enabled so the qcom,pil-tz-generic
  * driver probes pas-id 13 and authenticates the zap at boot

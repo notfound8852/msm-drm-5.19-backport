@@ -2,6 +2,7 @@
 #include <linux/of.h>
 #include <linux/slab.h>
 #include <linux/clk.h>
+#include <linux/pm_domain.h>
 #include <linux/version.h>
 
 #include "linux/opp.h"
@@ -51,22 +52,6 @@ static struct _opp_resources *_find_opp_res(struct device *dev)
 	return devres_find(dev, _opp_res_release, NULL, NULL);
 }
 
-static u32 _get_icc_path_count(struct device_node *np)
-{
-	const __be32 *data;
-	int len;
-
-	data = of_get_property(np, "interconnects", &len);
-	if (!data || len <= 0)
-		return 0;
-
-	/* Each entry = <src dst>; a stray cell means the property is junk. */
-	if (len % (sizeof(u32) * 2))
-		return 0;
-
-	return len / (sizeof(u32) * 2);
-}
-
 /*
  * Fetch the node for @dev, creating it on first use. devm_pm_opp_set_clkname()
  * and devm_pm_opp_of_add_table() both come through here so the two can be
@@ -84,7 +69,7 @@ static struct _opp_resources *_get_opp_res(struct device *dev)
 	if (res)
 		return res;
 
-	path_count = _get_icc_path_count(dev->of_node);
+	path_count = of_icc_get_count(dev);
 
 	size = sizeof(*res) +
 	       path_count * sizeof(struct icc_path *);
@@ -279,11 +264,12 @@ static int _set_opp_voltage(struct device *dev,
 {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
 	/*
-	 * HACK: We can fully skip voltage on Downstream version that use the
-	 * msm-bus API. Whenever _vote_bw is invoked, the underlying msm-bus
-	 * API implicitly drops the exact voltage/corner vote onto the hardware
-	 * rails bypassing the upstream genpd framework entirely.
+	 * HACK: We can fully skip voltage on downstream versions that use the
+	 * msm-bus API. Whenever icc_set_bw is invoked, the underlying msm-bus
+	 * driver implicitly scales to the required voltage/corner vote on the
+	 * hardware rails. This allows us to bypass upstream genpd framework.
 	 */
+
 	return 0;
 #else
 	if (target->level)
@@ -296,13 +282,26 @@ static int _set_opp_voltage(struct device *dev,
 }
 
 /*
- * @enabled_here reports whether this call was the one that took the clock from
- * off to on, so the caller can unwind its own work without stealing an enable
- * that an earlier dev_pm_opp_set_opp() is still relying on.
+ * The rate goes through the core rather than a bare clk_set_rate().
+ * dev_pm_opp_set_rate() exists on every base kernel this shim targets and does
+ * a good deal more: it scales any "opp-microvolt" supplies and any genpd
+ * performance state the OPP declares, rounds the target with clk_round_rate(),
+ * skips the write entirely when the rate is already what was asked for, and
+ * resolves the clock through opp_table->clk - the same one
+ * devm_pm_opp_set_clkname() named. None of that is worth reimplementing.
+ *
+ * The prepare/enable is ours. The OPP core has never done it on any version, and
+ * it has to happen first or the rate write lands on a gated clock.
+ *
+ * No unwinding on failure, matching mainline _set_opp(): every failure there is
+ * dev_err() then return. A rate that would not take leaves the clock running at
+ * the rate it already had, which is a state the hardware was happy with a
+ * moment ago. Killing the clock outright - which this used to do - turns a
+ * failed transition into a dead device.
  */
-static int _set_opp_clk(struct _opp_resources *res,
-			unsigned long freq,
-			bool *enabled_here)
+static int _set_opp_clk(struct device *dev,
+			struct _opp_resources *res,
+			unsigned long freq)
 {
 	int ret;
 
@@ -315,34 +314,37 @@ static int _set_opp_clk(struct _opp_resources *res,
 			return ret;
 
 		res->clk_enabled = true;
-		*enabled_here = true;
 	}
 
-	ret = clk_set_rate(res->clk, freq);
-	if (ret && *enabled_here) {
-		clk_disable_unprepare(res->clk);
-		res->clk_enabled = false;
-		*enabled_here = false;
-	}
-
-	return ret;
+	return dev_pm_opp_set_rate(dev, freq);
 }
 
-static void _disable_opp_clk(struct _opp_resources *res)
+static void _disable_opp_clk(struct device *dev, struct _opp_resources *res)
 {
-	if (res->clk && res->clk_enabled) {
-		clk_disable_unprepare(res->clk);
-		res->clk_enabled = false;
-	}
+	if (!res->clk || !res->clk_enabled)
+		return;
+
+	/*
+	 * Straight to the clock on the way down: dev_pm_opp_set_rate() rejects a
+	 * target of 0 outright ("Invalid target frequency") before it looks at
+	 * anything else, so it cannot wind a clock down. Best effort - a clock
+	 * that will not take 0 still gets disabled below.
+	 */
+	clk_set_rate(res->clk, 0);
+
+	clk_disable_unprepare(res->clk);
+	res->clk_enabled = false;
+
+	dev_pm_genpd_set_performance_state(dev, 0);
 }
 
 /* Mainline's _set_opp(dev, opp_table, NULL, ...) tail: drop every vote. */
-static int _disable_opp(struct _opp_resources *res)
+static int _disable_opp(struct device *dev, struct _opp_resources *res)
 {
 	const struct _opp_target off = { };
 
 	_vote_bw(res, 0, 0);
-	_disable_opp_clk(res);
+	_disable_opp_clk(dev, res);
 
 	res->cur = off;
 
@@ -353,10 +355,17 @@ static int _disable_opp(struct _opp_resources *res)
  * The transition proper. @res is what mainline passes an opp_table for - the
  * caller has already resolved it, so this only has to apply.
  *
- * Ordering mirrors mainline _set_opp(): widen the bus before speeding the clock
- * up, narrow it only after slowing the clock down, so the hardware is never
- * fast on a bus that has not been told about it. An unknown starting point
- * counts as scaling up.
+ * Ordering mirrors mainline _set_opp() exactly. Everything the part depends on
+ * is raised before it speeds up and lowered only after it has slowed down, so
+ * it is never fast on a rail or a bus that has not been told about it:
+ *
+ *	scaling up:	voltage -> bandwidth -> clock
+ *	scaling down:	clock	-> bandwidth -> voltage
+ *
+ * Mainline gets that shape from _set_opp_level() and _set_required_opps()
+ * bracketing _set_opp_bw() on both sides of the clock; ours is the same
+ * sequence with the two helpers we have. An unknown starting point counts as
+ * scaling up.
  */
 static int _set_opp(struct device *dev,
 		    struct _opp_resources *res,
@@ -364,12 +373,11 @@ static int _set_opp(struct device *dev,
 {
 	struct _opp_target target;
 	struct _opp_target old;
-	bool enabled_here = false;
 	bool scaling_down;
 	int ret;
 
 	if (!opp)
-		return _disable_opp(res);
+		return _disable_opp(dev, res);
 
 	_read_opp_target(res, opp, &target);
 
@@ -377,42 +385,40 @@ static int _set_opp(struct device *dev,
 	scaling_down = old.freq && target.freq < old.freq;
 
 	if (!scaling_down) {
-		ret = _set_opp_bw(res, &target);
+		ret = _set_opp_voltage(dev, &target);
 		if (ret)
 			goto err;
 
-		ret = _set_opp_voltage(dev, &target);
+		ret = _set_opp_bw(res, &target);
 		if (ret)
-			goto rollback_bw;
+			goto err;
 	}
 
-	ret = _set_opp_clk(res, target.freq, &enabled_here);
+	ret = _set_opp_clk(dev, res, target.freq);
 	if (ret)
 		goto rollback_bw;
 
 	if (scaling_down) {
 		ret = _set_opp_bw(res, &target);
 		if (ret)
-			goto rollback_clk;
+			goto err;
 
 		ret = _set_opp_voltage(dev, &target);
 		if (ret)
-			goto rollback_clk;
+			goto err;
 	}
 
 	res->cur = target;
 
 	return 0;
 
-rollback_clk:
-	if (res->clk && old.freq)
-		clk_set_rate(res->clk, old.freq);
-
-	if (enabled_here) {
-		clk_disable_unprepare(res->clk);
-		res->clk_enabled = false;
-	}
-
+	/*
+	 * The bandwidth vote is the only thing put back, and only when it was
+	 * raised ahead of a clock that then refused to follow - leaving the bus
+	 * wide open for a rate the part never reached. Nothing else unwinds:
+	 * mainline unwinds nothing at all, and a half-applied rate or corner is
+	 * still a rate or corner the hardware is running at.
+	 */
 rollback_bw:
 	if (!scaling_down)
 		_set_opp_bw(res, &old);
@@ -430,6 +436,7 @@ int devm_pm_opp_of_add_table(struct device *dev)
 	struct _opp_resources *res;
 	u32 path_count;
 	bool has_clock;
+	u32 i;
 	int ret;
 
 	ret = dev_pm_opp_of_add_table(dev);
@@ -447,7 +454,7 @@ int devm_pm_opp_of_add_table(struct device *dev)
 	if (ret)
 		return ret;
 
-	path_count = _get_icc_path_count(dev->of_node);
+	path_count = of_icc_get_count(dev);
 	has_clock = of_property_read_bool(dev->of_node, "clocks");
 
 	if (!path_count && !has_clock)
@@ -465,20 +472,28 @@ int devm_pm_opp_of_add_table(struct device *dev)
 	/*
 	 * The node was sized from the same immutable DT property, so this can
 	 * only trip if that assumption ever stops holding - catch it here
-	 * rather than letting of_icc_get() run off the end of the array.
+	 * rather than letting the loop below run off the end of the array.
 	 */
 	if (WARN_ON(path_count > res->max_paths))
 		return -EINVAL;
 
-	if (path_count) {
-		ret = of_icc_get(dev,
-				 res->paths,
-				 &res->num_paths);
-		if (ret) {
+	/*
+	 * By index, not by name: this wants every path the node declares, and
+	 * "interconnect-names" is optional in DT. Paths taken before a failure
+	 * are already counted in num_paths, so _opp_res_release() frees them.
+	 */
+	for (i = 0; i < path_count; i++) {
+		struct icc_path *path = of_icc_get_by_index(dev, i);
+
+		if (IS_ERR_OR_NULL(path)) {
+			ret = path ? PTR_ERR(path) : -ENODEV;
 			dev_err(dev,
-				"Failed to acquire ICC paths\n");
+				"Failed to acquire ICC path %u: %d\n",
+				i, ret);
 			return ret;
 		}
+
+		res->paths[res->num_paths++] = path;
 	}
 
 	if (has_clock) {
