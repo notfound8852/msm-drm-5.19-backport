@@ -381,7 +381,6 @@ static int dpu_kms_global_obj_init(struct dpu_kms *dpu_kms)
 #endif
 	return 0;
 }
-#if KERNEL_VERSION(5, 1, 0) < LINUX_VERSION_CODE
 static int dpu_kms_parse_data_bus_icc_path(struct dpu_kms *dpu_kms)
 {
 	struct icc_path *path0;
@@ -408,16 +407,7 @@ static int dpu_kms_parse_data_bus_icc_path(struct dpu_kms *dpu_kms)
 	}
 	return 0;
 }
-#else
-static int dpu_kms_parse_data_bus_icc_path(struct dpu_kms *dpu_kms)
-{
-    struct drm_device *dev = dpu_kms->dev;
-    int ret;
-    /* decently simple usage */
-    ret = of_icc_get(dev->dev, dpu_kms->path, &dpu_kms->num_paths);
-    return ret;
-}
-#endif
+
 static int dpu_kms_enable_vblank(struct msm_kms *kms, struct drm_crtc *crtc)
 {
 	return dpu_crtc_vblank(crtc, true);

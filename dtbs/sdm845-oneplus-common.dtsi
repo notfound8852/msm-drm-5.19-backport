@@ -98,6 +98,7 @@
 
 			interconnects = <MSM_BUS_MASTER_MDP_PORT0 MSM_BUS_SLAVE_EBI_CH0>,
 					<MSM_BUS_MASTER_MDP_PORT1 MSM_BUS_SLAVE_EBI_CH0>;
+			interconnect-names = "mdp0-mem", "mdp1-mem";
 
 			iommus = <&apps_smmu 0x880 0x8>,
 					 <&apps_smmu 0xc80 0x8>;
@@ -342,6 +343,7 @@
 			qcom,gmu = <&mainline_gmu>;
 
 			interconnects = <MSM_BUS_MASTER_GRAPHICS_3D MSM_BUS_SLAVE_EBI_CH0>;
+			interconnect-names = "gfx-mem";
 
 			gpu_opp_table: opp-table {
 				compatible = "operating-points-v2";

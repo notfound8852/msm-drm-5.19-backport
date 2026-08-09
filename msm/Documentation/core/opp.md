@@ -88,7 +88,8 @@ the consuming device node**. Mainline writes `<&provider MASTER &provider SLAVE>
 there is no interconnect provider on 4.19, so the shim expects two bare cells
 holding the msm-bus `src` and `dst` instead. That property is what sizes the
 path array this shim allocates, and it is the only DT change the port requires.
-See [`interconnector.md`](interconnector.md) for the form and an example.
+`interconnect-names` alongside it keeps its mainline meaning. See
+[`interconnector.md`](interconnector.md) for the form and an example.
 
 ## Design: one devres node per device
 
@@ -108,8 +109,9 @@ a single shared slot per device that the driver core and the driver both write,
 which is exactly how the earlier version of this shim lost state when a second
 device registered under the same platform context.
 
-The node **owns** the clock and the interconnect paths — plain `clk_get()` and
-`of_icc_get()`, not the managed variants — so `_opp_res_release()` is the single
+The node **owns** the clock and the interconnect paths — plain `clk_get()` and a
+loop over `of_icc_get_by_index()`, not the managed variants — so
+`_opp_res_release()` is the single
 teardown point and gets the internal order right: drop a still-held enable,
 then put the clock, then put the paths. Without that, unbinding with an OPP
 still applied would put an enabled clock.
@@ -163,22 +165,39 @@ takes an `opp_table`, so the public function stays a lookup and a delegate.
 avg/peak bandwidth in bytes/sec. Mainline reads those off the OPP; here the
 bandwidth and level come back off `opp->np` on every transition.
 
-Order follows mainline `_set_opp()`:
+Order follows mainline `_set_opp()` exactly:
 
 | | scaling up | scaling down |
 | --- | --- | --- |
-| 1 | bandwidth | clock |
-| 2 | voltage | bandwidth |
+| 1 | voltage | clock |
+| 2 | bandwidth | bandwidth |
 | 3 | clock | voltage |
 
-Widen the bus before the part gets faster; narrow it only once the part is
-already slower. An unknown starting point (`cur.freq == 0`) counts as scaling
-up. `res->cur` holds the last committed target and stands in for mainline's
+Everything the part depends on is raised before it speeds up and lowered only
+after it has slowed down, so it is never fast on a rail or a bus that has not
+been told about it. Mainline gets that shape from `_set_opp_level()` and
+`_set_required_opps()` bracketing `_set_opp_bw()` on both sides of the clock
+config; this is the same sequence with the two helpers the shim has.
+
+An unknown starting point (`cur.freq == 0`) counts as scaling up. `res->cur`
+holds the last committed target and stands in for mainline's
 `opp_table->current_opp`.
+
+The rate itself goes through `dev_pm_opp_set_rate()`, not a bare
+`clk_set_rate()`. That call exists on every base kernel this shim targets and
+carries several things worth having for free: it scales `opp-microvolt`
+supplies and genpd performance state, rounds the target with
+`clk_round_rate()`, returns early when the rate is already correct, and picks
+the clock out of `opp_table->clk` — the same one `devm_pm_opp_set_clkname()`
+named, so the two can never disagree.
+
+The wind-down cannot use it. `dev_pm_opp_set_rate()` rejects a target of `0`
+before it looks at anything else, so `_disable_opp_clk()` goes straight to
+`clk_set_rate(clk, 0)` and then disables.
 
 ## Voltage
 
-`_set_opp_voltage()` is where the corner vote would go. On Downstream kernels
+`_set_opp_voltage()` is where the corner vote would go. On downstream kernels
 there is nothing to do, and that is not an omission.
 
 `msm_bus_scale_update_bw()` does not just program the bus. It resolves the
@@ -188,7 +207,8 @@ just placed has already carried the voltage — which is why this shim can skip
 genpd entirely, on a kernel where `rpmhpd` and `required-opps` do not exist
 (both land in 5.10).
 
-While software architectures differ completely between Downstream and Mainline, the physical hardware behavior on the SoC power rails remains identical:
+While software-wise downstream and mainline differ, the physical hardware
+behavior on the SoC power rails remains the same:
 
 | Layer | Mainline (>= 5.10) via `genpd` | Downstream via `msm-bus` |
 | :--- | :--- | :--- |
@@ -215,12 +235,16 @@ Nothing in-tree needs that yet.
 - **`dev_pm_opp_set_opp()` returns 0 when the device has no node.** Mainline
   errors out. A device with neither clocks nor interconnects legitimately never
   gets a node, and for it a transition really is a no-op.
-- **Failed transitions unwind to the previous vote.** Mainline returns the error
-  with the bandwidth vote left applied. On this SoC a stranded high vote after a
-  failed transition is worse than the extra code.
-- **The shim prepares and enables the clock.** The OPP core only ever calls
-  `clk_set_rate()`. Tracked in `clk_enabled`, dropped on
-  `dev_pm_opp_set_opp(dev, NULL)` and again at release.
+- **One narrow rollback.** Mainline unwinds nothing — every failure in
+  `_set_opp()` is `dev_err()` then `return ret`. This shim keeps that, with a
+  single exception: a bandwidth vote raised ahead of a clock that then refused
+  to follow is put back, because it otherwise leaves the bus wide open for a
+  rate the part never reached. A half-applied rate or corner is *not* unwound —
+  it is still a rate or corner the hardware is running at, and the state it was
+  running at a moment earlier.
+- **The shim prepares and enables the clock.** The OPP core has never done this
+  on any version; it only ever sets the rate. Tracked in `clk_enabled`, dropped
+  on `dev_pm_opp_set_opp(dev, NULL)` and again at release.
 
 ## Things to note:
 
