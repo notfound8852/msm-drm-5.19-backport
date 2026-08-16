@@ -3,7 +3,6 @@
 #include <linux/slab.h>
 #include <linux/clk.h>
 #include <linux/pm_domain.h>
-#include <linux/version.h>
 
 #include "linux/opp.h"
 
@@ -359,7 +358,7 @@ static int _disable_opp(struct device *dev, struct _opp_resources *res)
  * is raised before it speeds up and lowered only after it has slowed down, so
  * it is never fast on a rail or a bus that has not been told about it:
  *
- *	scaling up:	voltage -> bandwidth -> clock
+ *	scaling up:		voltage -> bandwidth -> clock
  *	scaling down:	clock	-> bandwidth -> voltage
  *
  * Mainline gets that shape from _set_opp_level() and _set_required_opps()
@@ -430,7 +429,7 @@ err:
 }
 
 /* Functions */
-
+#if !OPP_CORE_HAS_DEVM
 int devm_pm_opp_of_add_table(struct device *dev)
 {
 	struct _opp_resources *res;
@@ -520,43 +519,6 @@ int devm_pm_opp_of_add_table(struct device *dev)
 	return 0;
 }
 
-int dev_pm_opp_set_opp(struct device *dev,
-		       struct dev_pm_opp *opp)
-{
-	struct _opp_resources *res;
-
-	/*
-	 * Mainline errors out when the device has no opp_table. We do not: a
-	 * device with neither clocks nor interconnects never gets a node, and
-	 * for it a transition is legitimately a no-op.
-	 */
-	res = _find_opp_res(dev);
-	if (!res)
-		return 0;
-
-	return _set_opp(dev, res, opp);
-}
-
-#if !OPP_CORE_HAS_LEVEL
-unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
-{
-	struct device_node *np;
-	u32 level = 0;
-
-	np = dev_pm_opp_get_of_node(opp);
-	if (!np)
-		return 0;
-
-	of_property_read_u32(np,
-			     "opp-level",
-			     &level);
-
-	of_node_put(np);
-
-	return level;
-}
-#endif
-
 int devm_pm_opp_set_supported_hw(struct device *dev,
 				 const u32 *versions,
 				 unsigned int count)
@@ -615,3 +577,43 @@ int devm_pm_opp_set_clkname(struct device *dev,
 
 	return 0;
 }
+#endif
+
+#if !OPP_CORE_HAS_SET_OPP
+int dev_pm_opp_set_opp(struct device *dev,
+		struct dev_pm_opp *opp)
+{
+	struct _opp_resources *res;
+
+	/*
+	 * Mainline errors out when the device has no opp_table. We do not: a
+	 * device with neither clocks nor interconnects never gets a node, and
+	 * for it a transition is legitimately a no-op.
+	 */
+	res = _find_opp_res(dev);
+	if (!res)
+		return 0;
+
+	return _set_opp(dev, res, opp);
+}
+#endif
+
+#if !OPP_CORE_HAS_LEVEL
+unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp)
+{
+  struct device_node *np;
+  u32 level = 0;
+
+  np = dev_pm_opp_get_of_node(opp);
+  if (!np)
+    return 0;
+
+  of_property_read_u32(np,
+      "opp-level",
+      &level);
+
+  of_node_put(np);
+
+  return level;
+}
+#endif

@@ -1,8 +1,10 @@
-#include "linux/interconnector.h"
 #include <linux/device.h>
 #include <linux/slab.h>
 #include <linux/export.h>
 
+#include "linux/interconnector.h"
+
+#if !HAS_BASIC_ICC
 int of_icc_get_count(struct device *dev)
 {
 	const __be32 *data;
@@ -127,7 +129,9 @@ void icc_put(struct icc_path *path)
 	kfree(path);
 }
 EXPORT_SYMBOL(icc_put);
+#endif /* !HAS_BASIC_ICC */
 
+#if !HAS_ADVANCE_ICC
 static void devm_icc_release(struct device *dev, void *res)
 {
 	icc_put(*(struct icc_path **)res);
@@ -152,3 +156,4 @@ struct icc_path *devm_of_icc_get(struct device *dev, const char *name)
 	return path;
 }
 EXPORT_SYMBOL(devm_of_icc_get);
+#endif /* !HAS_ADVANCE_ICC */

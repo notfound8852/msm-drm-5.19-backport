@@ -137,7 +137,9 @@ correct — they can never be applied.
 The point of isolating it this way is the *shrink list* in `opp.h`:
 
 ```c
-#define OPP_CORE_HAS_LEVEL	(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
+#define OPP_CORE_HAS_LEVEL		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
+#define OPP_CORE_HAS_SET_OPP	(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#define OPP_CORE_HAS_DEVM		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
 ```
 
 The OPP subsystem absorbed these properties one at a time on the way to 5.11.

@@ -15,7 +15,6 @@
  */
 
 #include <linux/pm_opp.h>
-#include <linux/version.h>
 #include "interconnector.h"
 
 /*
@@ -38,8 +37,9 @@
  * gained opp->bandwidth[] in 5.5 but no plain getter to switch to, so the DT
  * read stays correct either way.
  */
-#define OPP_CORE_HAS_LEVEL	(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
-
+#define OPP_CORE_HAS_LEVEL		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
+#define OPP_CORE_HAS_SET_OPP	(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+#define OPP_CORE_HAS_DEVM		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0))
 /**
  * struct _opp_target - One OPP flattened into the values we actually commit
  * @freq: Rate from "opp-hz", in Hz
@@ -92,6 +92,7 @@ struct _opp_resources {
 	struct icc_path *paths[];
 };
 
+#if !OPP_CORE_HAS_DEVM
 /**
  * devm_pm_opp_of_add_table() - Add the device's OPP table and claim its handles
  * @dev: Device to add the table for
@@ -104,31 +105,6 @@ struct _opp_resources {
  * Return: 0 on success, negative errno otherwise.
  */
 int devm_pm_opp_of_add_table(struct device *dev);
-
-/**
- * dev_pm_opp_set_opp() - Apply an operating point
- * @dev: Device to apply it to
- * @opp: OPP to apply, or NULL to drop every vote
- *
- * Scales bandwidth, voltage and clock in mainline's order: bandwidth first when
- * scaling up, last when scaling down. A failed transition is unwound to the
- * previous vote.
- *
- * Return: 0 on success - including when @dev has no handles to scale - and a
- * negative errno if the transition failed and was unwound.
- */
-int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp);
-
-#if !OPP_CORE_HAS_LEVEL
-/**
- * dev_pm_opp_get_level() - Read an OPP's "opp-level"
- * @opp: OPP to read
- *
- * Return: The level, or 0 if the OPP does not declare one.
- */
-unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp);
-#endif
-
 /**
  * devm_pm_opp_set_supported_hw() - Managed dev_pm_opp_set_supported_hw()
  * @dev: Device to set the supported hardware versions for
@@ -153,5 +129,32 @@ int devm_pm_opp_set_supported_hw(struct device *dev,
  */
 int devm_pm_opp_set_clkname(struct device *dev,
 			    const char *name);
-
 #endif
+
+#if !OPP_CORE_HAS_SET_OPP
+/**
+ * dev_pm_opp_set_opp() - Apply an operating point
+ * @dev: Device to apply it to
+ * @opp: OPP to apply, or NULL to drop every vote
+ *
+ * Scales bandwidth, voltage and clock in mainline's order: bandwidth first when
+ * scaling up, last when scaling down. A failed transition is unwound to the
+ * previous vote.
+ *
+ * Return: 0 on success - including when @dev has no handles to scale - and a
+ * negative errno if the transition failed and was unwound.
+ */
+int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp);
+#endif
+
+#if !OPP_CORE_HAS_LEVEL
+/**
+ * dev_pm_opp_get_level() - Read an OPP's "opp-level"
+ * @opp: OPP to read
+ *
+ * Return: The level, or 0 if the OPP does not declare one.
+ */
+unsigned int dev_pm_opp_get_level(struct dev_pm_opp *opp);
+#endif
+#endif /* OPP_HANDLE_H */
+
