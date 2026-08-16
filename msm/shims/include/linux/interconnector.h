@@ -22,10 +22,14 @@
  *
  * See Documentation/core/interconnector.md.
  */
+#include <linux/version.h>
 
+#define HAS_BASIC_ICC		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0))
+#define HAS_ADVANCE_ICC		(LINUX_VERSION_CODE >= KERNEL_VERSION(5, 8, 0))
+
+#if !HAS_BASIC_ICC
 #include <linux/msm-bus.h>
 #include <linux/of.h>
-
 /**
  * struct icc_path - Shim handle representing an interconnect path
  * @handle: Pointer to the underlying legacy Qualcomm bus client handle
@@ -62,16 +66,6 @@ struct icc_path *of_icc_get(struct device *dev, const char *name);
  * Return: as of_icc_get(), plus -ENOENT if @idx is out of range.
  */
 struct icc_path *of_icc_get_by_index(struct device *dev, int idx);
-
-/**
- * devm_of_icc_get() - Managed of_icc_get()
- * @dev: Consumer device
- * @name: Entry in "interconnect-names", or NULL for the first path
- *
- * Return: as of_icc_get(). The path is released at unbind.
- */
-struct icc_path *devm_of_icc_get(struct device *dev, const char *name);
-
 /**
  * of_icc_get_count() - Number of paths the device declares
  * @dev: Consumer device
@@ -101,5 +95,19 @@ int icc_set_bw(struct icc_path *path, u64 ab, u64 ib);
  * @path: Path to release, may be NULL
  */
 void icc_put(struct icc_path *path);
+#else
+#include <linux/interconnect.h>
+#endif /* !HAS_BASIC_ICC */
+
+#if !HAS_ADVANCE_ICC
+/**
+ * devm_of_icc_get() - Managed of_icc_get()
+ * @dev: Consumer device
+ * @name: Entry in "interconnect-names", or NULL for the first path
+ *
+ * Return: as of_icc_get(). The path is released at unbind.
+ */
+struct icc_path *devm_of_icc_get(struct device *dev, const char *name);
+#endif
 
 #endif /* INTERCONNECTOR_H */
