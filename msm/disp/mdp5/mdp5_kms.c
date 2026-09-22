@@ -268,6 +268,9 @@ static const struct mdp_kms_funcs kms_funcs = {
 		.irq             = mdp5_irq,
 		.enable_vblank   = mdp5_enable_vblank,
 		.disable_vblank  = mdp5_disable_vblank,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+		.get_scanout_position = mdp5_crtc_get_scanout_position,
+#endif
 		.flush_commit    = mdp5_flush_commit,
 		.enable_commit   = mdp5_enable_commit,
 		.disable_commit  = mdp5_disable_commit,

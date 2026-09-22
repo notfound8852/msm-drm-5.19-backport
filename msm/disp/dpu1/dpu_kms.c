@@ -976,6 +976,9 @@ static const struct msm_kms_funcs kms_funcs = {
 	.complete_commit = dpu_kms_complete_commit,
 	.enable_vblank   = dpu_kms_enable_vblank,
 	.disable_vblank  = dpu_kms_disable_vblank,
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+	.get_scanout_position = dpu_crtc_get_scanout_position,
+#endif
 	.check_modified_format = dpu_format_check_modified_format,
 	.get_format      = dpu_get_msm_format,
 	.destroy         = dpu_kms_destroy,

@@ -271,6 +271,14 @@ void dpu_crtc_complete_commit(struct drm_crtc *crtc);
 struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 			       struct drm_plane *cursor);
 
+#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
+				   bool in_vblank_irq,
+				   int *vpos, int *hpos,
+				   ktime_t *stime, ktime_t *etime,
+				   const struct drm_display_mode *mode);
+#endif
+
 /**
  * dpu_crtc_register_custom_event - api for enabling/disabling crtc event
  * @kms: Pointer to dpu_kms

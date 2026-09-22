@@ -427,11 +427,20 @@ static struct drm_encoder *get_encoder_from_crtc(struct drm_crtc *crtc)
 	return NULL;
 }
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 static bool mdp5_crtc_get_scanout_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,
 					   ktime_t *stime, ktime_t *etime,
 					   const struct drm_display_mode *mode)
+#else
+/* Hooked via kms_funcs.get_scanout_position -> msm_drv.c */
+bool mdp5_crtc_get_scanout_position(struct drm_crtc *crtc,
+				    bool in_vblank_irq,
+				    int *vpos, int *hpos,
+				    ktime_t *stime, ktime_t *etime,
+				    const struct drm_display_mode *mode)
+#endif
 {
 	unsigned int pipe = crtc->index;
 	struct drm_encoder *encoder;
@@ -1201,7 +1210,9 @@ static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {
 	.atomic_flush = mdp5_crtc_atomic_flush,
 	.atomic_enable = mdp5_crtc_atomic_enable,
 	.atomic_disable = mdp5_crtc_atomic_disable,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	.get_scanout_position = mdp5_crtc_get_scanout_position,
+#endif
 };
 
 static void mdp5_crtc_vblank_irq(struct mdp_irq *irq, uint32_t irqstatus)

@@ -229,7 +229,7 @@ static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 					   ktime_t *stime, ktime_t *etime,
 					   const struct drm_display_mode *mode)
 #else
-/* This is now Hooked into msm_drv.c */
+/* Hooked via kms_funcs.get_scanout_position -> msm_drv.c */
 bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 					   bool in_vblank_irq,
 					   int *vpos, int *hpos,

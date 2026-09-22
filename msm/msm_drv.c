@@ -78,24 +78,20 @@ MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disab
 module_param(modeset, bool, 0600);
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
-extern bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
-                       bool in_vblank_irq,
-                       int *vpos, int *hpos,
-                       ktime_t *stime, ktime_t *etime,
-                       const struct drm_display_mode *mode);
-
 static bool msm_driver_get_scanout_position(struct drm_device *dev, unsigned int pipe,
 					    bool in_vblank_irq, int *vpos, int *hpos,
 					    ktime_t *stime, ktime_t *etime,
 					    const struct drm_display_mode *mode)
 {
+	struct msm_drm_private *priv = dev->dev_private;
+	struct msm_kms *kms = priv->kms;
 	struct drm_crtc *crtc = drm_crtc_from_index(dev, pipe);
 
-	if (!crtc)
+	if (!crtc || !kms || !kms->funcs->get_scanout_position)
 		return false;
 
-	return dpu_crtc_get_scanout_position(crtc, in_vblank_irq, vpos, hpos,
-					     stime, etime, mode);
+	return kms->funcs->get_scanout_position(crtc, in_vblank_irq, vpos, hpos,
+						stime, etime, mode);
 }
 
 static bool msm_driver_get_vblank_timestamp(struct drm_device *dev, unsigned int pipe,
