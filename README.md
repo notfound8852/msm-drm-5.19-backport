@@ -16,10 +16,10 @@ Kernel version: `4.19.255`
 ---
 
 # CURRENT STATUS:
-**STABLE, as of July 4th 2026, 11:49pm.** The core driver architecture and hardware acceleration subsystems are fully functional. The stuff I have tested is `kmscube` and Sway window manager so far.
+**STABLE, as of July 4th 2026, 11:49pm.** The core driver architecture and hardware acceleration subsystems are fully functional. Tested and verified with `kmscube`, `Sway`, and `Hyprland` (Wayland compositors utilizing full DRM/KMS + Vulkan backends).
 
 **MSM module source:** Upstream Linux 5.19
-**My panel version** Upstream Linux 6.6
+**My panel version:** Upstream Linux 6.6
 **Kernel version(The one I am on):** Downstream 4.19.255 - For Oneplus6/6T by EdwinMoq
 
 ### 🟢 Baseline & Core Subsystems
@@ -36,6 +36,7 @@ But most importantly, the panel lights up!
 ### 🟢 Rendering:
 * **kmscube:** Works.
 * **Sway:** Vulkan backend renderer actually renders to the screen.
+* **Hyprland:** Fully functional — Wayland compositor runs with hardware acceleration on top of the backported MSM DRM stack.
 
 ---
 
@@ -88,7 +89,7 @@ This driver is going to be a part of **Andrunix** (my main project), and it's go
 1. **Standard Android Boot:** Uses the vendor kernel with KGSL/SDE for regular Android functionality.
 2. **Linux Desktop Boot:** Uses a modified Device Tree (DTB) where vendor KGSL and SDE nodes are stripped and replaced with mainline-aligned MDSS/Adreno nodes, backed by this **msm-drm-5.19** driver.
 
-**NOTE:** This approach eventually will be changed to do a live swap while being booted into Android. But for now, this we avoid the extreme complexity of live SDE ↔ MSM driver switching as the uninit flow is completely mangled.
+**NOTE:** This approach eventually will be changed to do a live swap while being booted into Android. But for now, this avoids the extreme complexity of live SDE ↔ MSM driver switching as the uninit flow is completely mangled.
 
 If you do want to fix the uninit flow, go check out my SDE patches. It does *exactly* that: [msm-sde-uninit-patches](https://github.com/notfound8852/msm-sde-uninit-patches)
 
@@ -117,7 +118,7 @@ The core of this project is a compatibility layer that bridges the gap between m
 ### Backports:
 **DRM DSC:** Quick and easy backport-ensured that the core driver DSI and DPU implementation are happy, allowing for clean compilation and functionality.
 **DRM Scheduler:** Backported the 5.19 GPU scheduler core into `scheduler/` so the modern engine job model maps cleanly onto the 4.19 base. This is what took the GPU from "idles forever" to actually executing the ringbuffer and rendering.
-**DRM SYNCOBJ:** Backported the 5.19 drm_syncobj chain to ensure modren versions of Vulkan would actually work.
+**DRM SYNCOBJ:** Backported the 5.19 drm_syncobj chain to ensure modern versions of Vulkan would actually work.
 
 ## Implementation Highlights (Fixes & Hacks)
 
@@ -130,9 +131,6 @@ This backport includes several targeted fixes to address downstream-specific beh
 Now, while this is all sunshine and rainbows I do have two points:
 *	**Lack of Shim Layer Maturity:** No way in hell are the shims ready for any `>4.19` KVER... yet (In the future they will be)
 *	**Work In Progress:** While the module works great as is. There are plenty of improvements to come.
-
-**=>** See **[SHOWCASE.md](SHOWCASE.md)** for the `modetest`, `kmscube --gears` logs, bring-up `dmesg`, and the demo.
-
 *	**Probing:** Driver probes and initializes fully.
 *	**Display:** Early framebuffer hand-off works and the panel does in fact light up:
 
@@ -165,22 +163,21 @@ Now, while this is all sunshine and rainbows I do have two points:
 
 1.  Copy the `msm/` directory into `drivers/gpu/drm/msm/`.
 2.  Backport the mainline MDSS/DPU Device Tree (DT) for your SoC..
-	- You can use mine as a reference check: [`dtbs/sdm845-oneplus-common.dtsi`](dtbs/sdm845-oneplus-common.dtsi). [`dtbs/sdm845-oneplus-enchilada.dts`](dtbs/sdm845-oneplus-enchilada.dts) and [`dtbs/sdm845-oneplus-fajita.dts`](dtbs/sdm845-oneplus-fajita.dts) are build upon that.
+	- You can use mine as a reference check: [`dtbs/sdm845-oneplus-common.dtsi`](dtbs/sdm845-oneplus-common.dtsi). [`dtbs/sdm845-oneplus-enchilada.dts`](dtbs/sdm845-oneplus-enchilada.dts) and [`dtbs/sdm845-oneplus-fajita.dts`](dtbs/sdm845-oneplus-fajita.dts) are built upon that.
 	- **Quick FYI:** The `dtbs` folder in this repo is direct copy of the one from EdwinMoq's kernel repo.
 3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
-4. Copy the `scheduler/` directory directly into `drivers/gpu/drm/` and append the compilation target to `drivers/gpu/drm/Makefile`:
-```
-obj-$(CONFIG_DRM_SCHED) += scheduler/
-```
-Additionally, you might also need to add this to `drivers/gpu/drm/Kconfig`:
-```
-config DRM_SCHED
-    tristate "DRM GPU Scheduler"
-    depends on DRM
+4. Copy the `scheduler/` directory directly into `drivers/gpu/drm/` and append the build targets:
+
+```bash
+cp -r scheduler/ drivers/gpu/drm/
+echo 'obj-$(CONFIG_DRM_SCHED) += scheduler/' >> drivers/gpu/drm/Makefile
+
+# Add Kconfig symbol if it's missing in the host kernel:
+echo -e "\nconfig DRM_SCHED\n\ttristate \"DRM GPU Scheduler\"\n\tdepends on DRM" >> drivers/gpu/drm/Kconfig
 ```
 
 ## 📄 Technical Documentation
 * See [README.md](msm/Documentation/README.md) for explanations on the shims, [FIXES.md](msm/Documentation/FIXES.md) for a deep dive into specific fixes directly related to the MSM driver.
 * See [SETUP.md](msm/Documentation/SETUP.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
 ## Proof
-* See [SHOWCASE.md](SHOWCASE.md) for the userspace side of things, logs, images — `modetest`, `kmscube --gears` at 60 fps, bring-up `dmesg`, and (eventually) a video of the whole `insmod` → `modetest` → `kmscube` run.
+* See [SHOWCASE.md](SHOWCASE.md) for the userspace side of things, `modetest`, `kmscube --gears`, `sway` and `hyprland` logs plus `dmesg`-which shows the probing to init sequence.

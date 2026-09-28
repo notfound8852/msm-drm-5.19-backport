@@ -47,7 +47,7 @@
 #endif
 
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 17, 0)
-#include "uapi/uapi_msm_drm.h"
+#include "drm/msm_drm.h"
 #include "compat_and_shims/devm_compat.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)

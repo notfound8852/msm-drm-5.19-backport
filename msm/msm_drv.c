@@ -1076,6 +1076,107 @@ static const struct drm_ioctl_desc msm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(MSM_SUBMITQUEUE_QUERY, msm_ioctl_submitqueue_query, DRM_RENDER_ALLOW),
 };
 
+#if CONFIG_DRM_MSM_IS_DOWNSTREAM
+/*
+ * Downstream kernels already provide the DRM syncobj infrastructure, but
+ * their implementation predates the syncobj behavior used by the backported
+ * DRM stack.
+ *
+ * The MSM backport carries its own drm_syncobj implementation, so keep the
+ * entire syncobj ioctl family on that implementation rather than mixing
+ * backported and downstream syncobj handlers. The handlers expect ioctl
+ * arguments in kernel space, therefore copy the arguments from userspace
+ * before dispatching them with the correct DRM device and per-file context.
+ *
+ * All non-syncobj ioctls continue through the normal DRM dispatcher.
+ *
+ * DRM_CAP_SYNCOBJ_TIMELINE is also handled here in case of Linux < 5.2.
+ */
+static long msm_fops_ioctl(struct file *filp, unsigned int cmd,
+			   unsigned long arg)
+{
+	struct drm_file *file_priv = filp->private_data;
+	struct drm_device *dev = file_priv->minor->dev;
+	void __user *argp = (void __user *)arg;
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+	if (cmd == DRM_IOCTL_GET_CAP) {
+		struct drm_get_cap req;
+
+		if (copy_from_user(&req, argp, sizeof(req)))
+			return -EFAULT;
+
+		if (req.capability == DRM_CAP_SYNCOBJ_TIMELINE) {
+			req.value = 1;
+			if (copy_to_user(argp, &req, sizeof(req)))
+				return -EFAULT;
+			return 0;
+		}
+	}
+#endif
+
+#define MSM_SYNCOBJ_IN(type, func) do { \
+	type args; \
+	if (copy_from_user(&args, argp, sizeof(args))) \
+		return -EFAULT; \
+	return func(dev, &args, file_priv); \
+} while (0)
+
+#define MSM_SYNCOBJ_INOUT(type, func) do { \
+	type args; \
+	int ret; \
+	if (copy_from_user(&args, argp, sizeof(args))) \
+		return -EFAULT; \
+	ret = func(dev, &args, file_priv); \
+	if (ret) \
+		return ret; \
+	if (copy_to_user(argp, &args, sizeof(args))) \
+		return -EFAULT; \
+	return 0; \
+} while (0)
+
+	switch (cmd) {
+	case DRM_IOCTL_SYNCOBJ_CREATE:
+		MSM_SYNCOBJ_INOUT(struct drm_syncobj_create, drm_syncobj_create_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_DESTROY:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_destroy, drm_syncobj_destroy_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_HANDLE_TO_FD:
+		MSM_SYNCOBJ_INOUT(struct drm_syncobj_handle, drm_syncobj_handle_to_fd_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_FD_TO_HANDLE:
+		MSM_SYNCOBJ_INOUT(struct drm_syncobj_handle, drm_syncobj_fd_to_handle_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_TRANSFER:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_transfer, drm_syncobj_transfer_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_WAIT:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_wait, drm_syncobj_wait_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_TIMELINE_WAIT:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_timeline_wait, drm_syncobj_timeline_wait_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_RESET:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_array, drm_syncobj_reset_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_SIGNAL:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_array, drm_syncobj_signal_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_TIMELINE_SIGNAL:
+		MSM_SYNCOBJ_IN(struct drm_syncobj_timeline_array, drm_syncobj_timeline_signal_ioctl);
+
+	case DRM_IOCTL_SYNCOBJ_QUERY:
+		MSM_SYNCOBJ_INOUT(struct drm_syncobj_timeline_array, drm_syncobj_query_ioctl);
+	}
+
+#undef MSM_SYNCOBJ_IN
+#undef MSM_SYNCOBJ_INOUT
+
+	return drm_ioctl(filp, cmd, arg);
+}
+#endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 /* >= 5.15: drm_gem_mmap_obj() dispatches to obj->funcs->mmap
  * (msm_gem_object_mmap), which applies the VM_MIXEDMAP fixup itself. */
@@ -1090,7 +1191,11 @@ static const struct file_operations fops = {
 	.owner		= THIS_MODULE,
 	.open		= drm_open,
 	.release	= drm_release,
-	.unlocked_ioctl	= drm_ioctl,
+#if CONFIG_DRM_MSM_IS_DOWNSTREAM
+	.unlocked_ioctl = msm_fops_ioctl,
+#else
+	.unlocked_ioctl = drm_ioctl
+#endif
 	.compat_ioctl	= drm_compat_ioctl,
 	.poll		= drm_poll,
 	.read		= drm_read,
@@ -1116,6 +1221,7 @@ static struct drm_driver msm_driver = {
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
 				DRIVER_PRIME |
 #endif
+                DRIVER_SYNCOBJ_TIMELINE |
 				DRIVER_SYNCOBJ,
 	.open               = msm_open,
 	.postclose           = msm_postclose,
@@ -1130,14 +1236,14 @@ static struct drm_driver msm_driver = {
 	.gem_prime_import	= drm_gem_prime_import,
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
-    .gem_free_object_unlocked	= msm_gem_free_object,
-    .gem_prime_export	= drm_gem_prime_export,
+	.gem_free_object_unlocked	= msm_gem_free_object,
+	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= drm_gem_prime_import,
-    .gem_prime_pin		= msm_gem_prime_pin,
+	.gem_prime_pin		= msm_gem_prime_pin,
 	.gem_prime_unpin	= msm_gem_prime_unpin,
-    .gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
-    .gem_prime_vmap		= msm_gem_prime_vmap,
-    .gem_prime_vunmap	= msm_gem_prime_vunmap,
+	.gem_prime_get_sg_table = msm_gem_prime_get_sg_table,
+	.gem_prime_vmap		= msm_gem_prime_vmap,
+	.gem_prime_vunmap	= msm_gem_prime_vunmap,
 	.gem_vm_ops			= &vm_ops,
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)

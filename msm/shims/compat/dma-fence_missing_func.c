@@ -35,6 +35,7 @@ struct dma_fence *dma_fence_get_stub(void)
 
 	return dma_fence_get(&dma_fence_stub);
 }
+EXPORT_SYMBOL(dma_fence_get_stub);
 
 /**
  * dma_fence_allocate_private_stub - return a private, signaled fence
@@ -57,3 +58,4 @@ struct dma_fence *dma_fence_allocate_private_stub(void)
 
 	return fence;
 }
+EXPORT_SYMBOL(dma_fence_allocate_private_stub);

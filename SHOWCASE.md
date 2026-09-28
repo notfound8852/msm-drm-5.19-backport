@@ -297,3 +297,305 @@ crtc[78]: crtc-0
 connector[29]: DSI-1
         crtc=crtc-0
 ```
+
+## Hyprland
+```
+    /root ▓▒░                                                                                                                                           ░▒▓ 04:13:59  ─╮
+❯ HYPRLAND_TRACE=1 AQ_TRACE=1 hyprland                                                                                                                                    ─╯
+Welcome to Hyprland!
+
+
+                     YY    UJ
+                    YYY    UUJ
+                   XXXY    UUUU
+                  zXXXX    UUUUU
+                zzzzX        UUUUJ
+               cczzz          UUUUJ
+             vccccz            UUUUUJ
+            vvcccc              UUUUUJ
+           vvvvv                  UUUUJ
+          uuuvv                    UUUUJ
+         uuuuu                      UUUUU
+        nnnuu                        UUUUU
+       nnnnn                          YUUUU
+       xxnn                            YUUU
+       xxxn                            YYUU
+      xxxx                              YYUU
+      rxxx                              YYYY
+      rrrx                              YYYY
+       rrrx                            XXXY
+       rrrr                            XXXX
+        rrrr                          zzXX
+         rrrr                        zzzz
+          rrrrr                    ccczz
+           rrrrrx                vccccc
+             rrrrxxxx        uuvvvvvc
+                rrxxxxxxnnnnuuuuuv
+                    xxxxxnnnnu
+
+
+
+WARN ]: Failed to change process scheduling strategy
+DEBUG ]: Old rlimit: soft -> 1024, hard -> 4096
+DEBUG ]: New rlimit: soft -> 4096, hard -> 4096
+WARN ]: WARNING: Hyprland is being launched without start-hyprland. This is highly advised against.
+DEBUG ]: Creating the EventLoopManager!
+DEBUG ]: Creating the KeybindManager!
+DEBUG ]: Creating the AnimationManager!
+DEBUG ]: Creating the DynamicPermissionManager!
+DEBUG ]: Creating the MonitorState!
+DEBUG ]: Creating the WorkspaceState!
+DEBUG ]: Creating the ConfigManager!
+DEBUG ]: [cfg] Regular config at /home/notfound/.config/hypr/hyprland.conf
+DEBUG ]: [cfg] Lua config not found, using legacy config at /home/notfound/.config/hypr/hyprland.conf
+DEBUG ]: Using config: /home/notfound/.config/hypr/hyprland.conf
+DEBUG ]: !!!!HEY YOU, YES YOU!!!!: further logs to stdout / logfile are disabled by default. BEFORE SENDING THIS LOG, ENABLE THEM. Use debug:disable_logs = false to do so: https://wiki.hypr.land/Configuring/Basics/Variables/#debug
+DEBUG ]: Creating the Error Overlay!
+DEBUG ]: Creating the LayoutManager!
+DEBUG ]: Creating the TokenManager!
+DEBUG ]: Creating the EventManager!
+DEBUG ]: Using config: /home/notfound/.config/hypr/hyprland.conf
+ERR ]: Invalid dispatcher: togglesplit
+DEBUG ]: Disabling stdout logs (debug.enable_stdout_logs = 0). Further logs will be written to /run/user/1001/hypr/efb50993780079460b0cbed1363e2166a2de1d9f_14789640_1705410545/hyprland.log
+DEBUG ]: Creating the PointerManager!
+DEBUG ]: Creating the AsyncResourceGatherer!
+00:00:19.498  [seatd/server.c:145] New client connected (pid: 861, uid: 1001, gid: 984)
+00:00:19.498  [seatd/seat.c:248] Added client 1 to seat0
+00:00:19.498  [seatd/seat.c:584] Opened client 1 on seat0
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (Function not implemented)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+
+(process:861): dconf-WARNING **: 04:14:01.767: failed to commit changes to dconf: The connection is closed
+
+(process:861): dconf-WARNING **: 04:14:01.767: failed to commit changes to dconf: The connection is closed
+
+(process:861): dconf-WARNING **: 04:14:01.789: failed to commit changes to dconf: The connection is closed
+
+(process:861): dconf-WARNING **: 04:14:01.789: failed to commit changes to dconf: The connection is closed
+DEBUG from aquamarine ]: Creating an Aquamarine backend!
+DEBUG ]: CConfigManager: no hyprtoolkit.conf found, using defaults (expected at $XDG_CONFIG_HOME/hypr/hyprtoolkit.conf or ~/.config/hypr/hyprtoolkit.conf)
+DEBUG from aquamarine ]: Starting the Aquamarine backend!
+DEBUG ]: Starting the Wayland platform
+DEBUG ]: Connected to a wayland compositor: Hyprland
+DEBUG ]: Got registry at 0x56a958aa80
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB4H with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB4H with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB4H with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB4H with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB4H with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB4H with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB4H with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB4H with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB48 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB48 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB48 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB48 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB48 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB48 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR30 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR30 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR30 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR30 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR30 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR30 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR30 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR30 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB30 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB30 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB30 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB30 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BA24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BA24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BA24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BA24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RA24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RA24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RA24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RA24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XR24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BX24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BX24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BX24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BX24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RG24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XB24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RX24 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RX24 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RX24 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RX24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BG24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR15 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR15 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR15 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR15 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB15 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB15 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB15 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB15 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR12 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR12 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AR12 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB12 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB12 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB12 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RG16 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RG16 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RG16 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format RG16 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R8 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R8 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R8 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R8 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R16 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R16 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R16 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR88 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR88 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR88 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR88 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR32 with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR32 with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR32 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  H with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  H with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  H with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  H with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  F with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  F with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format R  F with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR H with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR H with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR H with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR H with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR F with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR F with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format GR F with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BG48 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BGRH with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BGRF with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB8F with modifier LINEAR
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB8F with modifier TILED3
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AB8F with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YUV9 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YU11 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YU12 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YU16 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YU24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YVU9 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YV11 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YV12 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YV16 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YV24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S010 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S210 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S410 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S012 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S212 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S412 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S016 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S216 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format S416 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV12 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV21 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format P010 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format P012 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format P016 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format P030 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV16 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV61 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV24 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV42 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format AYUV with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format XYUV with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y410 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y412 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y416 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YUYV with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YVYU with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format UYVY with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format VYUY with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y210 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y212 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format Y216 with modifier INVALID
+DEBUG ]: zwp_linux_dmabuf_v1: Got format BG16 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format NV12 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format VYUY with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format UYVY with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got format YV12 with modifier COMPRESSED
+DEBUG ]: zwp_linux_dmabuf_v1: Got main device
+DEBUG ]: zwp_linux_dmabuf_v1: Got node /dev/dri/renderD128
+DEBUG ]: zwp_linux_dmabuf_v1: Got done
+DEBUG ]: wayland output 71: name DSI-1
+DEBUG ]: wayland output 71: description    (DSI-1)
+DEBUG ]: wayland output 71: dimensions [Vector2D: x: 1080, y: 2280]
+DEBUG ]: wayland output 71: make  model
+DEBUG ]: wayland output 71: done
+DEBUG ]: zwp_linux_dmabuf_v1: opened node /dev/dri/renderD128 with fd 10
+DEBUG from aquamarine ]: Created a GBM allocator with drm fd 10
+DEBUG ]: Supported EGL global extensions: (16) EGL_EXT_device_base EGL_EXT_device_enumeration EGL_EXT_device_query EGL_EXT_platform_base EGL_KHR_client_get_all_proc_addresses EGL_EXT_client_extensions EGL_KHR_debug EGL_EXT_platform_device EGL_EXT_explicit_device EGL_EXT_platform_wayland EGL_KHR_platform_wayland EGL_EXT_platform_x11 EGL_KHR_platform_x11 EGL_EXT_platform_xcb EGL_MESA_platform_gbm EGL_KHR_platform_gbm EGL_MESA_platform_surfaceless
+DEBUG ]: eglDeviceFromDRMFD: Using device /dev/dri/card0
+os_same_file_description couldn't determine if two DRM fds reference the same file description. (Function not implemented)
+Let's just assume that file descriptors for the same file probablyshare the file description instead. This may cause problems whenthat isn't the case.
+DEBUG ]: EGL: IMG_context_priority supported, requesting high
+DEBUG ]: EGL: EXT_create_context_robustness supported, requesting lose on reset
+DEBUG ]: EGL: Got a high priority context
+DEBUG ]: DRM syncobj timeline support: yes
+The XKEYBOARD keymap compiler (xkbcomp) reports:
+> Warning:          Multiple symbols for level 1/group 1 on key <FK23>
+>                   Using F23, ignoring XF86TouchpadOff
+> Warning:          Symbol map for key <FK23> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Symbol map for key <FK24> redefined
+>                   Using last definition for conflicting fields
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOn
+> Warning:          Could not resolve keysym XF86ElectronicPrivacyScreenOff
+> Warning:          Could not resolve keysym XF86ActionOnSelection
+> Warning:          Could not resolve keysym XF86ContextualInsert
+> Warning:          Could not resolve keysym XF86ContextualQuery
+Errors from xkbcomp are not fatal to the X server
+DEBUG ]: window opening failed: wm_capabilities received
+DEBUG ]: wayland: configure toplevel with 0x0
+TRACE from aquamarine ]: GBM: Allocating a buffer: size [Vector2D: x: 990, y: 550], format AB4H, cursor: false, multigpu: false, scanout: false
+TRACE from aquamarine ]: GBM: Available formats: 76
+TRACE from aquamarine ]: GBM: Using modifier-based allocation, modifiers: 3
+TRACE from aquamarine ]: GBM: | mod 0x0 : LINEAR
+TRACE from aquamarine ]: GBM: | mod 0x500000000000001 : COMPRESSED
+TRACE from aquamarine ]: GBM: | mod 0x500000000000003 : TILED3
+DEBUG from aquamarine ]: GBM: Allocated a new buffer with size [Vector2D: x: 990, y: 550] and format AB4H with modifier 0x500000000000001 : COMPRESSED
+TRACE from aquamarine ]: Swapchain: Acquired a buffer with format AB4H and modifier 0x500000000000001 : COMPRESSED
+TRACE from aquamarine ]: GBM: Allocating a buffer: size [Vector2D: x: 990, y: 550], format AB4H, cursor: false, multigpu: false, scanout: false
+TRACE from aquamarine ]: GBM: Available formats: 76
+TRACE from aquamarine ]: GBM: Using modifier-based allocation, modifiers: 3
+TRACE from aquamarine ]: GBM: | mod 0x0 : LINEAR
+TRACE from aquamarine ]: GBM: | mod 0x500000000000001 : COMPRESSED
+TRACE from aquamarine ]: GBM: | mod 0x500000000000003 : TILED3
+DEBUG from aquamarine ]: GBM: Allocated a new buffer with size [Vector2D: x: 990, y: 550] and format AB4H with modifier 0x500000000000001 : COMPRESSED
+TRACE from aquamarine ]: Swapchain: Acquired a buffer with format AB4H and modifier 0x500000000000001 : COMPRESSED
+DEBUG from aquamarine ]: Swapchain: Reconfigured a swapchain to [Vector2D: x: 990, y: 550] AB4H of length 2
+The XKEYBOARD keymap compiler (xkbcomp) reports:
+> Warning:          Unsupported maximum keycode 709, clipping.
+>                   X11 cannot support keycodes above 255.
+> Warning:          Virtual modifier Hyper multiply defined
+>                   Using 0, ignoring 0
+> Warning:          Virtual modifier ScrollLock multiply defined
+>                   Using 0, ignoring 0
+Errors from xkbcomp are not fatal to the X server
+DEBUG ]: wayland window: configure surface with 1
+DEBUG ]: window: got fractional scale: 100.0%
+DEBUG ]: wayland: configure toplevel with 990x550
+DEBUG ]: wayland window: configure surface with 2
+```

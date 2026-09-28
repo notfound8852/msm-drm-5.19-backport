@@ -183,8 +183,6 @@
  * point 0 to mean take/replace the fence in the syncobj.
  */
 
-#include "uapi/uapi_drm.h"
-
 #include <linux/anon_inodes.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -197,7 +195,7 @@
 #include <drm/drm_file.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_print.h>
-#include "include/drm/drm_syncobj.h"
+#include "drm/drm_syncobj.h"
 #include <drm/drm_utils.h>
 
 /* Since drm_inernal.h can be unpredictable with it's includes.
@@ -252,7 +250,6 @@ struct drm_syncobj *drm_syncobj_find(struct drm_file *file_private,
 
 	return syncobj;
 }
-//EXPORT_SYMBOL(drm_syncobj_find);
 
 static void drm_syncobj_fence_add_wait(struct drm_syncobj *syncobj,
 				       struct syncobj_wait_entry *wait)
@@ -326,7 +323,6 @@ void drm_syncobj_add_point(struct drm_syncobj *syncobj,
 	dma_fence_chain_for_each(fence, prev);
 	dma_fence_put(prev);
 }
-//EXPORT_SYMBOL(drm_syncobj_add_point);
 
 /**
  * drm_syncobj_replace_fence - replace fence in a sync object.
@@ -359,7 +355,6 @@ void drm_syncobj_replace_fence(struct drm_syncobj *syncobj,
 
 	dma_fence_put(old_fence);
 }
-//EXPORT_SYMBOL(drm_syncobj_replace_fence);
 
 /**
  * drm_syncobj_assign_null_handle - assign a stub fence to the sync object
@@ -475,7 +470,6 @@ out:
 
 	return ret;
 }
-//EXPORT_SYMBOL(drm_syncobj_find_fence);
 
 /**
  * drm_syncobj_free - free a sync object.
@@ -491,7 +485,6 @@ void drm_syncobj_free(struct kref *kref)
 	drm_syncobj_replace_fence(syncobj, NULL);
 	kfree(syncobj);
 }
-//EXPORT_SYMBOL(drm_syncobj_free);
 
 /**
  * drm_syncobj_create - create a new syncobj
@@ -533,7 +526,6 @@ int drm_syncobj_create(struct drm_syncobj **out_syncobj, uint32_t flags,
 	*out_syncobj = syncobj;
 	return 0;
 }
-//EXPORT_SYMBOL(drm_syncobj_create);
 
 /**
  * drm_syncobj_get_handle - get a handle from a syncobj
@@ -569,7 +561,6 @@ int drm_syncobj_get_handle(struct drm_file *file_private,
 	*handle = ret;
 	return 0;
 }
-//EXPORT_SYMBOL(drm_syncobj_get_handle);
 
 static int drm_syncobj_create_as_handle(struct drm_file *file_private,
 					u32 *handle, uint32_t flags)
@@ -646,7 +637,6 @@ int drm_syncobj_get_fd(struct drm_syncobj *syncobj, int *p_fd)
 	*p_fd = fd;
 	return 0;
 }
-//EXPORT_SYMBOL(drm_syncobj_get_fd);
 
 static int drm_syncobj_handle_to_fd(struct drm_file *file_private,
 				    u32 handle, int *p_fd)
@@ -1203,7 +1193,6 @@ signed long drm_timeout_abs_to_jiffies(int64_t timeout_nsec)
 
 	return timeout_jiffies64 + 1;
 }
-//EXPORT_SYMBOL(drm_timeout_abs_to_jiffies);
 
 static int drm_syncobj_array_wait(struct drm_device *dev,
 				  struct drm_file *file_private,

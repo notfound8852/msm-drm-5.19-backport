@@ -29,11 +29,9 @@
 #include <linux/dma-fence.h>
 #include "linux/dma-fence-chain.h"
 
-
 #include <drm/drm_drv.h>
-#ifndef DRIVER_SYNCOBJ_TIMELINE
-#define DRIVER_SYNCOBJ_TIMELINE         0x100000
-#endif
+
+#include "drm_shim.h"
 
 struct drm_file;
 

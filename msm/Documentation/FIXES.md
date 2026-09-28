@@ -175,3 +175,8 @@ Let's just assume that file descriptors for the same file probablyshare the file
 **msm_sched_job_add_implicit_dependencies:** Added to `msm_gem_submit.c` (function [`msm_sched_job_add_implicit_dependencies`](../msm_gem_submit.c#L381)) as a 4.19-5.3-compatible reimplementation of upstream's `drm_sched_job_add_implicit_dependencies`.
 
 **Why?:** Upstream's helper (5.16+) assumes `drm_gem_object` embeds `->resv` directly and walks it with `dma_resv_iter`/`dma_resv_usage_rw`. On 4.19, `msm_gem_object` still carries its own `struct reservation_object`, and fences live behind the legacy `fence_excl`/`fence` (shared list) fields with manual RCU handling — there's no iterator to call. Without this, implicit sync (exclusive fence always a dep, shared fences only on write) just doesn't happen, which bites you the moment two jobs touch the same BO without explicit fencing.
+
+**Timeline Syncobj & Capability Override (`msm_fops_ioctl`):**
+* In `msm_drv.c` a custom `unlocked_ioctl` wrapper ([`msm_fops_ioctl`](../msm_drv.c#L1095)). It intercepts `DRM_IOCTL_GET_CAP` and all 11 `DRM_IOCTL_SYNCOBJ_*` IOCTLs.
+
+**Why?:** Modern Mesa and Vulkan rely heavily on timeline syncobjs (`DRM_CAP_SYNCOBJ_TIMELINE`). I do not trust all versions across 4.19 till 5.18 to handle syncobj dispatches the same-yes, intercepting just 4 of the new `timeline` ioctls *does* work on 4.19 but all it takes is on little mess up in one function and it all breaks.

@@ -13,7 +13,7 @@
 #include <linux/dma-fence.h>
 #include <linux/irq_work.h>
 #include <linux/slab.h>
-#include "compat_and_shims/dma-fence.h"
+#include "compat_and_shims/dma-fence-shim.h"
 
 /**
  * struct dma_fence_chain - fence to represent an node of a fence chain

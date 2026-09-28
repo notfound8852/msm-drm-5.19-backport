@@ -3,8 +3,12 @@ ccflags-y := -I $(srctree)/$(src)
 ccflags-y += -I $(srctree)/$(src)/disp/dpu1
 ccflags-$(CONFIG_DRM_MSM_DSI) += -I $(srctree)/$(src)/dsi
 ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
-ccflags-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += -I$(srctree)/$(src)/shims/include \
-										   -I$(srctree)/$(src)/shims
+ccflags-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += \
+											-include $(srctree)/$(src)/shims/include/uapi/drm/drm.h \
+											-include $(srctree)/$(src)/shims/include/uapi/drm/msm_drm.h \
+											-include $(srctree)/$(src)/shims/include/drm/drm_syncobj.h \
+											-iquote $(srctree)/$(src)/shims/include \
+											-I$(srctree)/$(src)/shims
 
 msm-y := \
 	adreno/adreno_device.o \
@@ -25,6 +29,7 @@ msm-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += \
 	shims/core/interconnector.o \
 	shims/core/opp.o \
 	shims/compat/devm_compat.o \
+	shims/backports/drm_dsc_helper.o \
 	shims/backports/dma-fence-chain.o \
 	shims/backports/drm_dsc_helper.o \
 	shims/compat/dma-fence_missing_func.o \

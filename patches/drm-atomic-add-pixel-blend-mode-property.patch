@@ -1,0 +1,57 @@
+diff --git a/drivers/gpu/drm/drm_atomic.c b/drivers/gpu/drm/drm_atomic.c
+index c2c14ad..b5bb5b2 100644
+--- a/drivers/gpu/drm/drm_atomic.c
++++ b/drivers/gpu/drm/drm_atomic.c
+@@ -909,6 +909,8 @@ static int drm_atomic_plane_set_property(struct drm_plane *plane,
+ 		state->src_h = val;
+ 	} else if (property == plane->alpha_property) {
+ 		state->alpha = val;
++	} else if (property == plane->blend_mode_property) {
++		state->pixel_blend_mode = val;
+ 	} else if (property == plane->rotation_property) {
+ 		if (!is_power_of_2(val & DRM_MODE_ROTATE_MASK)) {
+ 			DRM_DEBUG_ATOMIC("[PLANE:%d:%s] bad rotation bitmask: 0x%llx\n",
+@@ -982,6 +984,8 @@ drm_atomic_plane_get_property(struct drm_plane *plane,
+ 		*val = state->src_h;
+ 	} else if (property == plane->alpha_property) {
+ 		*val = state->alpha;
++	} else if (property == plane->blend_mode_property) {
++		*val = state->pixel_blend_mode;
+ 	} else if (property == plane->rotation_property) {
+ 		*val = state->rotation;
+ 	} else if (property == plane->zpos_property) {
+diff --git a/include/drm/drm_plane.h b/include/drm/drm_plane.h
+index 8a152dc..d5bea3b 100644
+--- a/include/drm/drm_plane.h
++++ b/include/drm/drm_plane.h
+@@ -118,6 +118,14 @@ struct drm_plane_state {
+ 	 */
+ 	u16 alpha;
+ 
++	/**
++	 * @pixel_blend_mode:
++	 * The alpha blending equation selection, describing how the pixels from
++	 * the current plane are composited with the background. Value can be
++	 * one of DRM_MODE_BLEND_*
++	 */
++	uint16_t pixel_blend_mode;
++
+ 	/**
+ 	 * @rotation:
+ 	 * Rotation of the plane. See drm_plane_create_rotation_property() for
+@@ -660,6 +668,15 @@ struct drm_plane {
+ 	 */
+ 	struct drm_property *rotation_property;
+ 
++	/**
++	 * @blend_mode_property:
++	 * Optional "pixel blend mode" enum property for this plane.
++	 * Blend mode property represents the alpha blending equation selection,
++	 * describing how the pixels from the current plane are composited with
++	 * the background.
++	 */
++	struct drm_property *blend_mode_property;
++
+ 	/**
+ 	 * @color_encoding_property:
+ 	 *

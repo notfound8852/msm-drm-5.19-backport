@@ -51,4 +51,27 @@
 #define drm_gem_object_put drm_gem_object_put_unlocked
 #endif
 
+#ifndef DRIVER_SYNCOBJ_TIMELINE
+#define DRIVER_SYNCOBJ_TIMELINE         0x100000
+#endif
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 2, 0)
+#ifndef MSM_CORE_CHECK_FEATURE
+#define MSM_CORE_CHECK_FEATURE
+static inline bool msm_core_check_feature(const struct drm_device *dev, u32 feature)
+{
+    if (feature == DRIVER_SYNCOBJ_TIMELINE)
+        return true; /* Always grant timeline syncobj support in backport shims */
+
+    return dev->driver->driver_features & feature;
+}
+#endif
+
+#ifdef drm_core_check_feature
+#undef drm_core_check_feature
+#endif
+
+#define drm_core_check_feature(dev, feature) msm_core_check_feature(dev, feature)
+#endif
+
 #endif /* DRM_SHIM_H */
