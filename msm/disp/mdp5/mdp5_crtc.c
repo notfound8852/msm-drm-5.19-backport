@@ -12,7 +12,6 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_flip_work.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_modeset_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "mdp5_kms.h"
@@ -502,7 +501,11 @@ static u32 mdp5_crtc_get_vblank_counter(struct drm_crtc *crtc)
 }
 
 static void mdp5_crtc_atomic_disable(struct drm_crtc *crtc,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				     struct drm_atomic_state *state)
+#else
+				     struct drm_crtc_state *old_crtc_state)
+#endif
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -548,7 +551,11 @@ static void mdp5_crtc_vblank_on(struct drm_crtc *crtc)
 }
 
 static void mdp5_crtc_atomic_enable(struct drm_crtc *crtc,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				    struct drm_atomic_state *state)
+#else
+				    struct drm_atomic_state *old_crtc_state)
+#endif
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -707,10 +714,18 @@ static enum mdp_mixer_stage_id get_start_stage(struct drm_crtc *crtc,
 }
 
 static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 		struct drm_atomic_state *state)
+#else
+		struct drm_crtc_state *state)
+#endif
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
+#else
+	struct drm_crtc_state *crtc_state = state;
+#endif
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc_state);
 	struct mdp5_interface *intf = mdp5_cstate->pipeline.intf;
 	struct mdp5_kms *mdp5_kms = get_kms(crtc);
@@ -804,13 +819,21 @@ static int mdp5_crtc_atomic_check(struct drm_crtc *crtc,
 }
 
 static void mdp5_crtc_atomic_begin(struct drm_crtc *crtc,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				   struct drm_atomic_state *state)
+#else
+				   struct drm_crtc_state *old_crtc_state)
+#endif
 {
 	DBG("%s: begin", crtc->name);
 }
 
 static void mdp5_crtc_atomic_flush(struct drm_crtc *crtc,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				   struct drm_atomic_state *state)
+#else
+				   struct drm_crtc_state *old_crtc_state)
+#endif
 {
 	struct mdp5_crtc *mdp5_crtc = to_mdp5_crtc(crtc);
 	struct mdp5_crtc_state *mdp5_cstate = to_mdp5_crtc_state(crtc->state);
@@ -1184,7 +1207,9 @@ static const struct drm_crtc_funcs mdp5_crtc_no_lm_cursor_funcs = {
 	.get_vblank_counter = mdp5_crtc_get_vblank_counter,
 	.enable_vblank  = msm_crtc_enable_vblank,
 	.disable_vblank = msm_crtc_disable_vblank,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+#endif
 };
 
 static const struct drm_crtc_funcs mdp5_crtc_funcs = {
@@ -1200,7 +1225,9 @@ static const struct drm_crtc_funcs mdp5_crtc_funcs = {
 	.get_vblank_counter = mdp5_crtc_get_vblank_counter,
 	.enable_vblank  = msm_crtc_enable_vblank,
 	.disable_vblank = msm_crtc_disable_vblank,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+#endif
 };
 
 static const struct drm_crtc_helper_funcs mdp5_crtc_helper_funcs = {

@@ -593,13 +593,6 @@ POWER_NODE(clock_gpucc);
 	};
 };
 
-&gpu {
-	zap-shader {
-		memory-region = <&pil_gpu_mem>;
-		firmware-name = "qcom/sdm845/a630_zap.mbn";
-	};
-};
-
 &mainline_dsi0_out {
 	remote-endpoint = <&panel_in>;
 	data-lanes = <0 1 2 3>;
@@ -664,3 +657,33 @@ DISABLE_NODE(gpu_gx_gdsc);
  */
 
 //DISABLE_NODE(pil_gpu);
+
+&gpu {
+	zap-shader {
+		memory-region = <&pil_gpu_mem>;
+
+		/*
+		 * NOTE: Match `firmware-name` to your vendor partition (.mdt vs .mbn).
+		 *
+		 * We adhere to the standard upstream layout under /lib/firmware/qcom/:
+		 *   ├── a630_gmu.bin
+		 *   ├── a630_sqe.fw
+		 *   └── sdm845/
+		 *       ├── a630_zap.b00 ... a630_zap.b02
+		 *       ├── a630_zap.elf
+		 *       └── a630_zap.mdt (or a630_zap.mbn)
+		 *
+		 * Check your stock /vendor/firmware/ or /vendor/firmware_mnt/image/
+		 * - Set "qcom/sdm845/a630_zap.mdt" if stock uses split .mdt + .bXX blobs.
+		 * - Set "qcom/sdm845/a630_zap.mbn" if stock uses monolithic .mbn.
+		 *
+		 * Mismatched firmware format breaks PIL/TZ Zap authentication (PAS ID 13),
+		 * preventing secure pipeline setup and causing the CP to choke:
+		 *   - "CP | opcode error | possible opcode=0x70E60001"
+		 *   - "timeout waiting to drain ringbuffer 0 rptr/wptr = C/11"
+		 *   - "gpu hw init failed: -22"
+		 *   - "gpu fault status 00800005" -> hangcheck recover / panic
+		 */
+		firmware-name = "qcom/sdm845/a630_zap.mdt";
+	};
+};

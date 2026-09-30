@@ -1,183 +1,246 @@
 # MSM DRM/KMS 5.19 Backport for Downstream Kernels
 
-This project provides a comprehensive backport of the **Qualcomm MSM DRM/KMS driver from Linux 5.19** to **Downstream kernel bases**.
+A backport of the **Mainline MSM DRM/KMS driver from Linux 5.19** to downstream Linux kernels, providing a modern DRM/KMS + Adreno graphics stack on vendor kernel bases.
 
-> **About the Project:** Built and maintained by an 18-year-old self-taught systems developer.
+I have tested older MSM versions but they mostly an experiment.
 
-**Note:** 4.19 is just the floor. In the future this module will support >=4.19 kernel versions as well.
+> **Current status: Working (and being worked on.)**
 
-It is designed to enable a modern, mainline-aligned graphics stack (DRM/KMS + Adreno) on legacy vendor kernels.
+The driver has been tested end-to-end on a **OnePlus 6 (SDM845)** with a downstream 4.19 kernel, including:
 
-**Snapdragon 845 (SDM845)** platform is currently being tested on OnePlus 6/6T `enchilada`/`fajita`.
-
-Here is the kernel I am using. Go check em out: [EdwinMoq](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19)
-Kernel version: `4.19.255`
-
----
-
-# CURRENT STATUS:
-**STABLE, as of July 4th 2026, 11:49pm.** The core driver architecture and hardware acceleration subsystems are fully functional. Tested and verified with `kmscube`, `Sway`, and `Hyprland` (Wayland compositors utilizing full DRM/KMS + Vulkan backends).
-
-**MSM module source:** Upstream Linux 5.19
-**My panel version:** Upstream Linux 6.6
-**Kernel version(The one I am on):** Downstream 4.19.255 - For Oneplus6/6T by EdwinMoq
-
-### 🟢 Baseline & Core Subsystems
-* **MDSS/DPU Pipeline:** Fully functional. Hardware interfaces probe flawlessly, `modetest` queries complete successfully, and early bootloader framebuffer hand-off transitions beautifully into the legacy TTY console (`/dev/fb0`).
-* **SMMU Layer:** Stable. IOMMU context banks are mapped and allocated safely.
-But most importantly, the panel lights up!
-
-### 🟢 GPU & GMU Status
-* **GMU Register Access:** **RESOLVED.** Fixed the blind hard-locking state during `gmu_resume` register reads/writes. Address spacing was incorrect in the device tree blobs (I am so stupid 🙃)
-* **Zap shader init:** **FIXED.** On downstream you need `pil_gpu` enabled because that's how the trust zone driver probes pas-id XX and authenticates the zap at boot.
-* **DRM Scheduler:** **BACKPORTED & WORKING.** Pulled the 5.19 scheduler core into `scheduler/`. The GPU now actually renders — `kmscube --gears` spins a cube at a locked **60 fps**.
-* **DRM SYNCOBJ:** **BACKPORTED** Pulled from 5.19 (along with `dma-fence-chain`) and hooked up into `msm_gem_submit.c`
-
-### 🟢 Rendering:
-* **kmscube:** Works.
-* **Sway:** Vulkan backend renderer actually renders to the screen.
-* **Hyprland:** Fully functional — Wayland compositor runs with hardware acceleration on top of the backported MSM DRM stack.
+* Full **DRM/KMS** display initialization
+* DPU display pipeline
+* DSI panel initialization
+* Adreno 630 GPU acceleration
+* GMU firmware and power sequencing
+* DRM GPU scheduler
+* DRM syncobjs and timeline synchronization
+* Vulkan rendering through **Freedreno/Turnip**
+* `modetest`
+* `kmscube`
+* **Sway**
+* **Hyprland**
 
 ---
 
-# Why This Exists: The Great DRM/KMS Divide (Android Bionic vs Standard Linux Glibc)
+## Current Hardware / Kernel
 
-**Note:** This is gonna be a bit of a history lesson.
+The primary development platform is:
 
-For over a decade at this point, developers and open-source communities or as I like to refer to them, "The Linux-on-Android enthusiast" community have tried and succeeded (naturally) on running standard GNU/Linux on mobile hardware. Historically, this has divided the community into two camps, each representing a massive compromise.
+| Component   | Configuration                                   |
+| ----------- | ----------------------------------------------- |
+| Device      | OnePlus 6 (`enchilada`) / OnePlus 6T (`fajita`) |
+| SoC         | Qualcomm Snapdragon 845 (`SDM845`)              |
+| GPU         | Adreno 630 (`A630`)                             |
+| Kernel      | Downstream Linux 4.19                           |
+| DRM source  | Linux 5.19                                      |
+| Panel       | Mainline Linux 6.6 panel driver                 |
+| Userspace   | Arch Linux / Andrunix                           |
+| Vulkan      | Mesa Freedreno / Turnip                         |
+| Compositors | Sway, Hyprland                                  |
 
-## The History
+The current reference kernel is [EdwinMoq/android_kernel_oneplus_sdm845](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19).
 
-1. **The Middle-Ground (The `libhybris` Era):**
-   Originating around 2012 within the Mer project (and popularized by Jolla for Sailfish OS and Canonical for Ubuntu Touch), `libhybris` was a brilliant hack. It allowed glibc-based Linux userspace programs to load and call Android’s Bionic C-library-linked proprietary graphics blobs. However, wrapping Android’s Hardware Abstraction Layers (HALs) and translating EGL calls meant dealing with significant compatibility shims, translation overhead, and complex dependency structures. Over time, maintaining this Bionic-to-Glibc bridge became a massive maintenance burden.
+---
 
-2. **The Purist-Ground (The Mainlining Movement):**
-   Around late 2017, "mainlining" was gaining serious momentum. Led by legendary Linux enthusiast communities like postmarketOS (pmOS), a massive push was made to break free from Android's bloated downstream vendor kernels completely. The goal? Run a pure, upstream mainline Linux kernel on phones.
+# Current Status
 
-3. **Google's Official AVF:**
-   Finalized with Android 13 on Pixel devices (and mandated for many ARMv9 devices on Android 14+), AVF leverages **pKVM (Protected KVM)**. Instead of just exposing raw KVM, pKVM enforces strict, cryptographically backed memory isolation between the Android host and the guest VM (typically running Google's stripped-down "Microdroid" OS). While great for running secure DRM keys or isolated code, it's essentially a brick wall if you want a seamless, high-performance desktop Linux environment.
+## 🟢 DRM/KMS
 
-If you couldn't already tell; **This project is my attempt at solving this complex gap.**
+The modern MSM display stack is operational on the downstream 4.19 base.
 
-**My take on the existing options:** I've always had this passion for a "perfect world" where I don't have to choose between Android or Linux for my phone's OS. And yes, I'm sure we've all had this exact thought. While looking at these options, I really wanted to lean towards upstreaming, as it's undoubtedly the best path in my opinion. No matter how broken upstream might be. pmOS single-handedly supports more devices than any other project, especially when we talk about downstream devices. The other options aside from mainlining just add a shit-ton of userspace fragmentation and or introduce latency.
-Criticizing both, I had a thought. What if we just... swapped drivers? Stay downstream but use the mainline driver at runtime. Unbind KGSL and SDE, `insmod` the panel and `msm` driver and... I'm sure you can imagine where this is going.
+* **DPU:** Working
+* **DSI:** Working
+* **SMMU/IOMMU:** Working
+* **Atomic KMS:** Working
+* **Panel initialization:** Working
+* **Framebuffer hand-off:** Working
+* **Atomic presentation:** Working
 
-Now, of course, this approach does *not* work out of the box and requires patching the SDE driver But for my "perfect world" scenario? It's still way better than hacking half my userspace.
+The driver can take over from the bootloader framebuffer and initialize the panel through the backported mainline display pipeline.
 
-**This project is my attempt at solving that gap.**
+## 🟢 Adreno / GPU
 
-## Comparisons
+The Adreno 630 stack is fully operational.
+
+* GMU power and register access
+* GPU CX/GX power domains
+* Zap shader firmware authentication
+* GPU ringbuffer submission
+* DRM scheduler
+* GPU synchronization
+* Vulkan rendering through Turnip
+
+`kmscube --gears` renders successfully at 60 FPS, and the GPU is used by Wayland compositors for actual desktop rendering.
+
+## 🟢 Wayland
+
+The backported stack has been tested with both:
+
+* **Sway**
+* **Hyprland**
+
+Both compositors are able to use the DRM/KMS device and Vulkan renderer provided by the backported graphics stack.
+
+---
+
+# Supported MSM Display Hardware
+
+The original implementation was focused almost exclusively on **DPU + 10nm DSI for SDM845**.
+
+The MSM module now includes support for:
+
+* **MDP4**
+* **MDP5**
+* **DPU**
+* **DSI**
+* **28nm DSI PHY**
+* **20nm DSI PHY**
+* **28nm 8960 DSI PHY**
+* **14nm DSI PHY**
+* **10nm DSI PHY**
+* **7nm DSI PHY**
+
+DisplayPort and HDMI support are not currently supported, yet.
+
+> Hardware support still depends on your downstream kernel and how you port *your* device-tree descriptions. I wanna be clear that while the driver components are now enabled and patched according to mainline, it does not mean your panel will work. (If mainline doesn't have a working panel for you... you'll kind of have to patch it yourself. 🙃)
+
+---
+
+## Project Scope
+
+The goal of this project is support Kernel versions from 4.19 **till** 5.19.
+
+### Newer hardware support
+
+The stock 5.19 MSM driver isn't nearly enough. Qualcomm's Snapdragon 7s Gen 2, proprietary drivers (`SDE` and `KGSL`) got support around Linux 5.10...
+
+So, support for—
+
+* **Adreno A7xx**
+* newer DPU generations
+* newer DSI/display hardware
+
+—will be backported in the future.
+
+---
+
+## Shim Architecture
+
+The compatibility infrastructure is organized into three primary categories:
+
+```text
+shims/
+├── backports/     # Mostly verbatim upstream implementations
+├── compat/        # Small compatibility gaps
+├── core/          # Substantial shims and custom implementations
+├── include/       # Compatibility and upstream headers
+└── NOTE.md
+```
+
+### `backports/`
+
+Contains functionality directly brought over from newer kernels with minimal modification.
+
+```text
+backports/
+├── dma-fence-chain.c
+├── drm_dsc_helper.c
+└── drm_syncobj.c
+```
+
+`drm_dsc_helper` is mostly to satisfy 5.19's dependencies. (DSI and DPU)
+
+`dma-fence-chain` is a dependancy for `drm_syncobj`. (`ioctls` of which are handled in `msm_drv.c`)
+
+### `compat/`
+
+Contains small compatibility functions or macros required where the host kernel is missing a particular API.
+
+```text
+compat/
+├── devm_compat.c
+└── dma-fence_missing_func.c
+```
+
+### `core/`
+
+Contains the heavy stuff.
+
+```text
+core/
+├── drm_missing_func.c
+├── drm_shim.c
+├── interconnector.c
+└── opp.c
+```
+
+`interconnector.c`, to put simply implements modern interconnects with the msm-bus API. [Read more](msm/Documentation/core/interconnector.md)
+
+`opp.c`, builds upon the `interconnector` shim, the existing OPP helpers and the concept of a 'shrink list' (essentially as we move closer to 5.11 the shim will track less and less stuff) [Read more](msm/Documentation/core/opp.md)
+
+`drm_missing_func.c` is mostly pixel blending and an additional `drm_fb_helper_fill_info` function.
+
+`drm_shim.c` holds custom implementations for `drm_writeback_connector_init_with_encoder` and `drm_firmware_drivers_only`
+
+---
+
+# Additional backports
+
+* `scheduler/` is the GPU scheduler from 5.19 which is a hard requirement in order for this backport to work.
+* `panel/` contains a patched OnePlus 6 panel from `KVER 6.6`.
+* `dtbs/` specifically `sdm845-oneplus-common.dtsi` which is both a backport of the sdm845 mainline `MDSS/DPU/DSI/DSI_PHY/Panel` and `GPU/GMU` stack *and* some of my own implementations.
+
+---
+
+# Why This Exists
+
+There are several 'established' ways of running Linux on Android hardware:
+
+* Compatibility layers such as `libhybris`
+* Complete kernel mainlining
+* Virtualization through KVM/AVF (This is by Google)
+* Other Android userspace-based solutions like `KGSL patches`, `Mesa for android`, etc.
+
+Here is my take.
+
+> **Keep the downstream kernel, but replace the legacy vendor graphics stack with a modern MSM DRM/KMS stack.**
+
+## Comparison
 
 | Approach | What you get | What it costs |
 | :--- | :--- | :--- |
 | **libhybris** | Android's blobs, callable from a Linux userspace | **Translation overhead** — every graphics call is routed through an intermediate compatibility layer. For example, standard Linux EGL/GBM calls from a Wayland compositor (like Weston) are intercepted, translated, and marshaled into Android-specific `gralloc` or `hwcomposer` calls before reaching the proprietary blobs, destroying native performance. |
 | **AVF / KVM** | A real Linux guest, isolated | **Virtualization overhead** — you're virtualizing an entire secondary kernel just to display a desktop. Good luck getting working GPU passthrough on a mobile SoC (a complete nightmare for the pure `KVM` path). |
 | **Full Mainlining** | Real upstream kernel, zero overhead | **No Android** — if your device isn't already mainlined, you're forced to reverse-engineer everything yourself. Otherwise, you're at the mercy of half-baked (sometimes they absolutely do work) community drivers, battery drain, broken hardware keys, and overheating issues. |
-| **This Backport** | Real upstream-model driver (Your kernel's stock DRM/KMS + modern 5.19 scheduler), zero overhead, vendor blobs still work | **My sanity.** |
+| **This Backport** | Real upstream-model driver (Your kernel's stock DRM/KMS + modern 5.19 scheduler), zero overhead, vendor blobs still work | **My sanity.** (not really, it was absolutely worth it.) |
 
 ---
 
-Nah, I'm just kidding. In all seriousness, this was actually a pretty fun learning experience. It was definitely frustrating at times and quite stressful through the month of June (college finals, poorly scheduled university entrance exams, and three other equally annoying, difficult tasks was a surefire way to hit mid-month burnout. Yes, I did this during exams. 🙃)
+# Project Architecture
 
----
----
+The project is intended to become part of **Andrunix**, which provides a hybrid Linux distro userspace with stock (or custom) Android.
 
-# Architecture
+This development setup uses a dual-boot style architecture hence why SDE and KGSL is disabled in `sdm845-oneplus-common.dtsi`:
 
-This driver is going to be a part of **Andrunix** (my main project), and it's going to utilize a **dual boot.img scheme** for running native Linux on Android hardware:
+1. **Android boot:** vendor kernel + KGSL/SDE for normal Android operation.
+2. **Linux boot:** downstream kernel with the vendor graphics nodes replaced by the mainline-aligned MSM DRM/Adreno stack.
 
-1. **Standard Android Boot:** Uses the vendor kernel with KGSL/SDE for regular Android functionality.
-2. **Linux Desktop Boot:** Uses a modified Device Tree (DTB) where vendor KGSL and SDE nodes are stripped and replaced with mainline-aligned MDSS/Adreno nodes, backed by this **msm-drm-5.19** driver.
+Ultimately, the longer-term goal for me is... complicated.
 
-**NOTE:** This approach eventually will be changed to do a live swap while being booted into Android. But for now, this avoids the extreme complexity of live SDE ↔ MSM driver switching as the uninit flow is completely mangled.
+I do wanna do a live swap between the vendor and MSM graphics drivers on the fly to keep at as native as possible (See [`msm-sde-uninit-patches`](https://github.com/notfound8852/msm-sde-uninit-patches) for the working SDE uninitialization patches for 4.19.)
 
-If you do want to fix the uninit flow, go check out my SDE patches. It does *exactly* that: [msm-sde-uninit-patches](https://github.com/notfound8852/msm-sde-uninit-patches)
-
-## Key Features
-
-### The Shim Layer (`msm/shims/`)
-The core of this project is a compatibility layer that bridges the gap between modern kernel APIs and downstream vendor implementations.
-
-*   **Interconnect (ICC) Shim:** Provides a 1:1 mapping of modern `of_icc_get()` and `icc_set_bw()` APIs onto the downstream `msm_bus_scale` framework. Supports both synchronous and asynchronous bandwidth scaling.
-*   **OPP (Operating Performance Points) Shim:** A custom implementation of the modern OPP layer. It unifies frequency scaling (`clk_set_rate`) and interconnect bandwidth voting into a single `dev_pm_opp_set_opp()` call, matching 5.19 behavior.
-*   **DRM Helper Backports:** Ported and also custom made modern DRM core features missing in 4.19:
-    *   `drm_plane_create_blend_mode_property` -> (ported)
-    *   `drm_writeback_connector_init_with_encoder` -> (custom made)
-    *   `drm_firmware_drivers_only()` (via raw cmdline parsing) -> (custom made)
-    *   Atomic plane state reset and reset helpers (`__drm_atomic_helper_plane_reset`). -> (ported)
-
-### Display Pipeline (DPU/DSI)
-*   **Mainline DPU Driver:** Ported from 5.19, providing modern plane, CRTC, and encoder management.
-*   **DSI PHY & Host:** Full support for 10nm DSI PHYs with mainline-style link/pixel clock management.
-*   **SMMU Fault Fixes:** Resolved translation faults (NULL TTBR0/TTBR1) by implementing IOMMU domain fallback logic and context bank handling for downstream SMMU drivers.
-*	**Panel Initialization & Signaling:** Resolved downstream-specific panel timeout conditions during the DSI pre-enable/enable sequence, ensuring proper clock/regulator locking before panel handoff. (Best example for this is manually shifting Panel regulators from LPM to HPM mode.)
-
-### GPU (Adreno 630 / A6xx)
-*   **CX Power Domain:** Fixed unmanaged CX domain sequencing by backporting 6.x-style `dev_pm_domain_attach_by_name` logic to ensure power is available before any GMU register access. Originally, the 5.19 driver didn't manage the CX domain; this was ported from 6.x.x.
-
-### Backports:
-**DRM DSC:** Quick and easy backport-ensured that the core driver DSI and DPU implementation are happy, allowing for clean compilation and functionality.
-**DRM Scheduler:** Backported the 5.19 GPU scheduler core into `scheduler/` so the modern engine job model maps cleanly onto the 4.19 base. This is what took the GPU from "idles forever" to actually executing the ringbuffer and rendering.
-**DRM SYNCOBJ:** Backported the 5.19 drm_syncobj chain to ensure modern versions of Vulkan would actually work.
-
-## Implementation Highlights (Fixes & Hacks)
-
-This backport includes several targeted fixes to address downstream-specific behavior:
-
-*   **Aperture Conflict Resolution:** Implements `msm_aperture_remove_framebuffers()` to cleanly evict the bootloader-initialized simplefb/framebuffer before DRM takes over, preventing memory contention.
-*   **Runtime CX Enabling:** Introduced `dev_gdsc_enable()` in `msm_mdss.c` and `a6xx_gmu.c` to allow manual GDSC management when the module is loaded post-boot (insmod).
-*   **Performance State Sanitization:** Added logic to ensure performance state votes are correctly reset to 0 during runtime suspend in `dpu_kms.c` and `dsi_host.c`, preventing power leakage.
-
-Now, while this is all sunshine and rainbows I do have two points:
-*	**Lack of Shim Layer Maturity:** No way in hell are the shims ready for any `>4.19` KVER... yet (In the future they will be)
-*	**Work In Progress:** While the module works great as is. There are plenty of improvements to come.
-*	**Probing:** Driver probes and initializes fully.
-*	**Display:** Early framebuffer hand-off works and the panel does in fact light up:
+But at the same time, I wanna test Mesa compiled against Bionic to all *this* mainline module to be permanently in charge of the display stack.
 
 ---
 
-<p align="center">
-  <img src="assets/panel_light_up.jpg" alt="OnePlus 6 panel initialized via backported 5.19 MSM DRM driver" width="600">
-  <br>
-  <em>The OnePlus 6 panel successfully lighting up using the backported mainline display pipeline. </em>
-</p>
-(I don't really have a good device to take photos, please excuse my terrible photography skills 🙃)
+# Documentation
 
----
----
+* [`msm/Documentation/README.md`](msm/Documentation/README.md) — shim architecture and compatibility layer
+* [`msm/Documentation/FIXES.md`](msm/Documentation/FIXES.md) — downstream-specific fixes and workarounds
+* [`msm/Documentation/SETUP.md`](msm/Documentation/SETUP.md) — setup requirements and kernel integration
+* [`SHOWCASE.md`](SHOWCASE.md) — logs and userspace validation
+* [`patches/`](patches/) — required host-kernel/device-tree patches
+* [`INTEGRATION.md`](INTEGRATION.md) — kernel integration, build, and device-tree notes
 
-<p align="center">
-  <img src="assets/fbgrab.png" alt="OnePlus 6 DRM/KMS Framebuffer Console Output" width="550">
-  <br>
-  <em>Raw <code>fbgrab</code> frame buffer dump (Kernel 4.19.255)</em>
-</p>
-
----
-
-*	**IOMMU:** Translation and context bank allocation are stable.
-*	**GPU & GMU Core:** The GMU successfully handles its power sequences, register domains are stable, firmware validation passes, and the GPU spins up directly into a clean engine idle loop.
-*	**DRM Scheduler:** **BACKPORTED & WORKING.** The 5.19 scheduler core now lives in `scheduler/` (`sched_main.c`, `sched_entity.c`, `sched_fence.c`), replacing 4.19's — which was too old to map the modern engine job model onto and would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it.
-*	**Rendering:** Working. The full chain — GPU submit → DRM scheduler → ringbuffer → atomic KMS flip — is live end to end.
-
-## 🛠️ Integration
-
-1.  Copy the `msm/` directory into `drivers/gpu/drm/msm/`.
-2.  Backport the mainline MDSS/DPU Device Tree (DT) for your SoC..
-	- You can use mine as a reference check: [`dtbs/sdm845-oneplus-common.dtsi`](dtbs/sdm845-oneplus-common.dtsi). [`dtbs/sdm845-oneplus-enchilada.dts`](dtbs/sdm845-oneplus-enchilada.dts) and [`dtbs/sdm845-oneplus-fajita.dts`](dtbs/sdm845-oneplus-fajita.dts) are built upon that.
-	- **Quick FYI:** The `dtbs` folder in this repo is direct copy of the one from EdwinMoq's kernel repo.
-3.  **Note:** Requires manual additions to `struct drm_plane_state` in `include/drm/drm_plane.h` for `pixel_blend_mode` support (see `msm/shims/NOTE.md` for details).
-4. Copy the `scheduler/` directory directly into `drivers/gpu/drm/` and append the build targets:
-
-```bash
-cp -r scheduler/ drivers/gpu/drm/
-echo 'obj-$(CONFIG_DRM_SCHED) += scheduler/' >> drivers/gpu/drm/Makefile
-
-# Add Kconfig symbol if it's missing in the host kernel:
-echo -e "\nconfig DRM_SCHED\n\ttristate \"DRM GPU Scheduler\"\n\tdepends on DRM" >> drivers/gpu/drm/Kconfig
-```
-
-## 📄 Technical Documentation
-* See [README.md](msm/Documentation/README.md) for explanations on the shims, [FIXES.md](msm/Documentation/FIXES.md) for a deep dive into specific fixes directly related to the MSM driver.
-* See [SETUP.md](msm/Documentation/SETUP.md) for a brief guide on how to get genpd power-domains to work and pixel blending to work.
-## Proof
-* See [SHOWCASE.md](SHOWCASE.md) for the userspace side of things, `modetest`, `kmscube --gears`, `sway` and `hyprland` logs plus `dmesg`-which shows the probing to init sequence.
+For the original development history and reasoning behind the project, see the git history.

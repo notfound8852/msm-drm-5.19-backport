@@ -7,6 +7,10 @@
 
 #include "mdp4_kms.h"
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 1, 0)
+#include <drm/drm_crtc_helper.h>
+#endif
+
 struct mdp4_lvds_connector {
 	struct drm_connector base;
 	struct drm_encoder *encoder;
@@ -50,8 +54,15 @@ static int mdp4_lvds_connector_get_modes(struct drm_connector *connector)
 	struct drm_panel *panel = mdp4_lvds_connector->panel;
 	int ret = 0;
 
-	if (panel)
-		ret = drm_panel_get_modes(panel, connector);
+	if (!panel)
+		return 0;
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+	ret = drm_panel_get_modes(panel, connector);
+#else
+	drm_panel_attach(panel, connector);
+	ret = drm_panel_get_modes(panel);
+#endif
 
 	return ret;
 }

@@ -7,10 +7,16 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_print.h>
 
 #include "mdp5_kms.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+#include <drm/drm_gem_atomic_helper.h>
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0)
+#include <drm/drm_atomic_uapi.h>
+#endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <drm/drm_damage_helper.h>
 #else
@@ -343,32 +349,59 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 }
 
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				   struct drm_atomic_state *state)
+#else
+				   struct drm_plane_state *state)
+#endif
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
 										 plane);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
+#endif
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	crtc = new_plane_state->crtc ? new_plane_state->crtc : old_plane_state->crtc;
+#else
+	crtc = state->crtc ? state->crtc : plane->state->crtc;
+#endif
 	if (!crtc)
 		return 0;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	crtc_state = drm_atomic_get_existing_crtc_state(state,
 							crtc);
+#else
+	crtc_state = drm_atomic_get_existing_crtc_state(state->state, crtc);
+#endif
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	return mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
+#else
+	return mdp5_plane_atomic_check_with_state(crtc_state, state);
+#endif
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				     struct drm_atomic_state *state)
+#else
+				     struct drm_plane_state *state)
+#endif
+
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
+#else
+	struct drm_plane_state *new_state = plane->state;
+#endif
 
 	DBG("%s: update", plane->name);
 
@@ -384,10 +417,19 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 }
 
 static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 					 struct drm_atomic_state *state)
+#else
+					 struct drm_plane_state *state)
+#endif
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
+#else
+	struct drm_plane_state *new_plane_state = state;
+	struct drm_atomic_state *atomic_state = state->state;
+#endif
 	struct mdp5_plane_state *mdp5_state = to_mdp5_plane_state(new_plane_state);
 	struct drm_crtc_state *crtc_state;
 	int min_scale, max_scale;
@@ -438,10 +480,16 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 }
 
 static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 					   struct drm_atomic_state *state)
+#else
+					   struct drm_plane_state *new_state)
+#endif
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
+#endif
 	struct drm_framebuffer *old_fb = plane->state->fb;
 
 	plane->state->src_x = new_state->src_x;
@@ -1039,7 +1087,9 @@ struct drm_plane *mdp5_plane_init(struct drm_device *dev,
 
 	mdp5_plane_install_properties(plane, &plane->base);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 	drm_plane_enable_fb_damage_clips(plane);
+#endif
 
 	return plane;
 

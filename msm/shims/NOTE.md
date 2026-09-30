@@ -20,7 +20,7 @@
 ├── include
 │   ├── compat_and_shims				# Headers for ./compat + ./core + ./backports/drm_syncobj.c
 │   │   ├── devm_compat.h
-│   │   ├── dma-fence.h
+│   │   ├── dma-fence-shim.h
 │   │   ├── iommu_shims.h
 │   │   ├── devm_compat_clk.h
 │   │   ├── nvmem-consumer.h

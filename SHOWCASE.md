@@ -1,4 +1,4 @@
-# 🧊 Showcase — The GPU is Alive
+# Showcase
 
 This is the "proof it works" page for the **5.19 MSM DRM/KMS backport** running on a downstream **4.19** kernel.
 
@@ -6,86 +6,11 @@ Platform: **Snapdragon 845** — OnePlus 6 / 6T (`enchilada` / `fajita`).
 
 The panel lights up, the GPU spins up out of idle, and `kmscube --gears` renders a spinning cube at a locked **60 fps** straight through the backported pipeline (GPU submit → DRM scheduler → ringbuffer → KMS flip).
 
-All the userspace output lives here so [`README.md`](README.md) stays a high-level overview and [`NOTE.md`](msm/shims/NOTE.md) stays a technical deep-dive.
-
-Sorry, Ubuntu Touch. 🙃
+All the userspace output lives here.
 
 ---
 
-## 🎥 Demo video
-
-> **Coming soon.** The full run, end to end: `insmod`ing `panel_samsung_sofef00.ko` and `msm.ko`, a quick `modetest` to confirm the pipeline is live, then `kmscube --gears` painting the cube. Not recording it tonight 🙃
-
-<!-- embed the video / link here once recorded -->
-
----
-
-## 🧊 `kmscube --gears` — 60 fps
-
-A spinning cube, gears mode, locked at 60 fps. This is the whole chain working: GPU command submission → the backported DRM scheduler (`scheduler/`) → ringbuffer execution → atomic KMS page flip onto the DSI panel.
-
-```sh
-[root@localhost ~]# insmod panel_samsung_sofef00.ko
-[root@localhost ~]# insmod msm.ko
-[root@localhost ~]# kmscube --gears
-Using display 0x5b699d3810 with EGL version 1.5
-===================================
-EGL information:
-  version: "1.5"
-  vendor: "Mesa Project"
-  client extensions: "EGL_EXT_device_base EGL_EXT_device_enumeration EGL_EXT_device_query EGL_EXT_platform_base EGL_KHR_client_get_all_proc_addresses EGL_EXT_client_extensions EGL_KHR_debug EGL_EXT_platform_device EGL_EXT_explicit_device EGL_EXT_platform_wayland EGL_KHR_platform_wayland EGL_EXT_platform_x11 EGL_KHR_platform_x11 EGL_EXT_platform_xcb EGL_MESA_platform_gbm EGL_KHR_platform_gbm EGL_MESA_platform_surfaceless"
-  display extensions: "EGL_ANDROID_blob_cache EGL_ANDROID_native_fence_sync EGL_EXT_buffer_age EGL_EXT_config_select_group EGL_EXT_create_context_robustness EGL_EXT_image_dma_buf_import EGL_EXT_image_dma_buf_import_modifiers EGL_EXT_query_reset_notification_strategy EGL_EXT_surface_compression EGL_IMG_context_priority EGL_KHR_cl_event2 EGL_KHR_config_attribs EGL_KHR_context_flush_control EGL_KHR_create_context EGL_KHR_create_context_no_error EGL_KHR_fence_sync EGL_KHR_get_all_proc_addresses EGL_KHR_gl_colorspace EGL_KHR_gl_renderbuffer_image EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_3D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_image EGL_KHR_image_base EGL_KHR_image_pixmap EGL_KHR_no_config_context EGL_KHR_reusable_sync EGL_KHR_surfaceless_context EGL_EXT_pixel_format_float EGL_KHR_wait_sync EGL_MESA_configless_context EGL_MESA_gl_interop EGL_MESA_image_dma_buf_export EGL_MESA_query_driver EGL_MESA_x11_native_visual_id "
-===================================
-OpenGL ES 2.x information:
-  version: "OpenGL ES 3.2 Mesa 26.1.3-arch1.2"
-  shading language version: "OpenGL ES GLSL ES 3.20"
-  vendor: "freedreno"
-  renderer: "FD630"
-  extensions: "GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_filter_anisotropic GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_EXT_draw_instanced GL_EXT_texture_sRGB_decode GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_EXT_texture_type_2_10_10_10_REV GL_NV_conditional_render GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_EXT_texture_storage GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_OES_viewport_array GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_occlusion_query_boolean GL_EXT_robustness GL_EXT_sRGB GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_shadow_samplers GL_KHR_debug GL_KHR_robustness GL_KHR_texture_compression_astc_hdr GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_depth_texture_cube_map GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_color_buffer_float GL_EXT_debug_label GL_EXT_sRGB_write_control GL_EXT_separate_shader_objects GL_EXT_shader_framebuffer_fetch GL_EXT_shader_group_vote GL_EXT_shader_implicit_conversions GL_EXT_shader_integer_mix GL_EXT_tessellation_point_size GL_EXT_tessellation_shader GL_ANDROID_extension_pack_es31a GL_EXT_base_instance GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_copy_image GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_gpu_shader5 GL_EXT_multi_draw_indirect GL_EXT_polygon_offset_clamp GL_EXT_primitive_bounding_box GL_EXT_render_snorm GL_EXT_shader_io_blocks GL_EXT_texture_border_clamp GL_EXT_texture_buffer GL_EXT_texture_cube_map_array GL_EXT_texture_norm16 GL_EXT_texture_view GL_KHR_blend_equation_advanced GL_KHR_blend_equation_advanced_coherent GL_KHR_context_flush_control GL_KHR_robust_buffer_access_behavior GL_NV_image_formats GL_NV_shader_noperspective_interpolation GL_OES_copy_image GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_gpu_shader5 GL_OES_primitive_bounding_box GL_OES_sample_shading GL_OES_sample_variables GL_OES_shader_io_blocks GL_OES_shader_multisample_interpolation GL_OES_tessellation_point_size GL_OES_tessellation_shader GL_OES_texture_border_clamp GL_OES_texture_buffer GL_OES_texture_cube_map_array GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_texture_view GL_EXT_blend_func_extended GL_EXT_buffer_storage GL_EXT_float_blend GL_EXT_geometry_point_size GL_EXT_geometry_shader GL_EXT_texture_filter_minmax GL_EXT_texture_sRGB_R8 GL_EXT_texture_sRGB_RG8 GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_OES_EGL_image_external_essl3 GL_OES_geometry_point_size GL_OES_geometry_shader GL_OES_shader_image_atomic GL_EXT_clear_texture GL_EXT_clip_cull_distance GL_EXT_conservative_depth GL_EXT_disjoint_timer_query GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_MESA_shader_integer_functions GL_EXT_clip_control GL_EXT_color_buffer_half_float GL_EXT_memory_object GL_EXT_memory_object_fd GL_EXT_semaphore GL_EXT_semaphore_fd GL_EXT_texture_compression_bptc GL_EXT_texture_mirror_clamp_to_edge GL_KHR_parallel_shader_compile GL_EXT_EGL_image_storage GL_EXT_shader_framebuffer_fetch_non_coherent GL_MESA_framebuffer_flip_y GL_EXT_demote_to_helper_invocation GL_EXT_depth_clamp GL_EXT_texture_query_lod GL_MESA_sampler_objects GL_EXT_EGL_image_storage_compression GL_EXT_texture_storage_compression GL_MESA_bgra GL_MESA_texture_const_bandwidth GL_EXT_shader_clock "
-===================================
-Rendered 120 frames in 2.008390 sec (59.749353 fps)
-Rendered 240 frames in 4.016652 sec (59.751252 fps)
-Rendered 360 frames in 6.025128 sec (59.749771 fps)
-Rendered 480 frames in 8.033715 sec (59.748196 fps)
-Rendered 600 frames in 10.042205 sec (59.747836 fps)
-Rendered 720 frames in 12.050311 sec (59.749495 fps)
-Rendered 840 frames in 14.058509 sec (59.750292 fps)
-Rendered 960 frames in 16.066528 sec (59.751555 fps)
-...
-```
-
-**NOTE:** I have also experiemented with sway a little bit:
-```
-[root@localhost ~]# sway
-00:00:01.996  [seatd/server.c:145] New client connected (pid: 2371, uid: 0, gid: 0)
-00:00:01.997  [seatd/seat.c:248] Added client 1 to seat0
-00:00:01.997  [seatd/seat.c:584] Opened client 1 on seat0
-00:00:00.637 [sway/config/output.c:1219] failed to execute 'swaybg' (background configuration probably not applied): No such file or directory
-dbus-update-activation-environment: error: unable to connect to D-Bus: Using X11 for dbus-daemon autolaunch was disabled at compile time, set your DBUS_SESSION_BUS_ADDRESS instead
-Failed to connect to user scope bus via local transport: No such file or directory
-Failed to connect to user scope bus via local transport: No such file or directory
-00:00:00.037 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
-```
-After installing `swaybg` the screen does show more than a pitful taskbar:
-
-<p align="center">
-  <img src="assets/sway.jpg" alt="Sway bonsai logo on the backported 5.19 MSM DRM driver" width="600">
-  <br>
-</p>
-
-I am running sway with vulkan as the renderer and I am on Arch linux.
-```
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:253] Vulkan device: 'Turnip Adreno (TM) 630'
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:254]   Device type: 'integrated'
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:255]   Supported API version: 1.3.348
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:256]   Driver version: 26.1.3
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:344]   Driver name: turnip Mesa driver (Mesa 26.1.3-arch1.2)
-00:00:00.464 [wlr] [render/vulkan/vulkan.c:364] Found matching Vulkan physical device: Turnip Adreno (TM) 630
-```
-
----
-
-## 🖥️ Bring-up logs (`dmesg`)
+## Early Bring-up logs (`dmesg`)
 
 The display + GPU/GMU pipeline coming up clean.
 
@@ -126,9 +51,8 @@ The display + GPU/GMU pipeline coming up clean.
 [   47.021913] msm_dpu ae01000.mdp: [drm:adreno_request_fw [msm]] loaded qcom/a630_gmu.bin from new location
 ```
 
----
 
-## 🔍 `modetest` + atomic state
+## `modetest` + atomic state
 
 `modetest -M msm -c` enumerating the DSI-1 connector, plus the full plane / CRTC atomic state dump from `/sys/kernel/debug/dri/0/state`.
 
@@ -159,7 +83,10 @@ id      encoder status          name            size (mm)       modes   encoders
                 flags: immutable range
                 values: 0 1
                 value: 0
+```
 
+## DRI State
+```
 [root@localhost ~]# cat /sys/kernel/debug/dri/0/state
 plane[30]: plane-0
         crtc=crtc-0
@@ -298,9 +225,111 @@ connector[29]: DSI-1
         crtc=crtc-0
 ```
 
-## Hyprland
+---
+
+## MSM DRM Framebuffer
+
+<p align="center">
+  <img src="assets/panel_light_up.jpg" alt="OnePlus 6 panel initialized via backported 5.19 MSM DRM driver" width="600">
+  <br>
+  <em>The OnePlus 6 on a desk with it's panel lit up, showing a framebuffer. </em>
+</p>
+
+### Here is `fbgrab`
+
+<p align="center">
+  <img src="assets/fbgrab.png" alt="OnePlus 6 DRM/KMS Framebuffer Console Output" width="550">
+  <br>
+  <em>Raw <code>fbgrab</code> Frame buffer dump (Kernel 4.19.255)</em>
+</p>
+
+(Just more readable `dmesg`)
+
+---
+
+## 🧊 `kmscube --gears` — 60 fps
+
+A spinning cube, gears mode, locked at 60 fps. This is the whole chain working: GPU command submission → the backported DRM scheduler (`scheduler/`) → ringbuffer execution → atomic KMS page flip onto the DSI panel.
+
+```sh
+[root@localhost ~]# insmod panel_samsung_sofef00.ko
+[root@localhost ~]# insmod msm.ko
+[root@localhost ~]# kmscube --gears
+Using display 0x5b699d3810 with EGL version 1.5
+===================================
+EGL information:
+  version: "1.5"
+  vendor: "Mesa Project"
+  client extensions: "EGL_EXT_device_base EGL_EXT_device_enumeration EGL_EXT_device_query EGL_EXT_platform_base EGL_KHR_client_get_all_proc_addresses EGL_EXT_client_extensions EGL_KHR_debug EGL_EXT_platform_device EGL_EXT_explicit_device EGL_EXT_platform_wayland EGL_KHR_platform_wayland EGL_EXT_platform_x11 EGL_KHR_platform_x11 EGL_EXT_platform_xcb EGL_MESA_platform_gbm EGL_KHR_platform_gbm EGL_MESA_platform_surfaceless"
+  display extensions: "EGL_ANDROID_blob_cache EGL_ANDROID_native_fence_sync EGL_EXT_buffer_age EGL_EXT_config_select_group EGL_EXT_create_context_robustness EGL_EXT_image_dma_buf_import EGL_EXT_image_dma_buf_import_modifiers EGL_EXT_query_reset_notification_strategy EGL_EXT_surface_compression EGL_IMG_context_priority EGL_KHR_cl_event2 EGL_KHR_config_attribs EGL_KHR_context_flush_control EGL_KHR_create_context EGL_KHR_create_context_no_error EGL_KHR_fence_sync EGL_KHR_get_all_proc_addresses EGL_KHR_gl_colorspace EGL_KHR_gl_renderbuffer_image EGL_KHR_gl_texture_2D_image EGL_KHR_gl_texture_3D_image EGL_KHR_gl_texture_cubemap_image EGL_KHR_image EGL_KHR_image_base EGL_KHR_image_pixmap EGL_KHR_no_config_context EGL_KHR_reusable_sync EGL_KHR_surfaceless_context EGL_EXT_pixel_format_float EGL_KHR_wait_sync EGL_MESA_configless_context EGL_MESA_gl_interop EGL_MESA_image_dma_buf_export EGL_MESA_query_driver EGL_MESA_x11_native_visual_id "
+===================================
+OpenGL ES 2.x information:
+  version: "OpenGL ES 3.2 Mesa 26.1.3-arch1.2"
+  shading language version: "OpenGL ES GLSL ES 3.20"
+  vendor: "freedreno"
+  renderer: "FD630"
+  extensions: "GL_EXT_blend_minmax GL_EXT_multi_draw_arrays GL_EXT_texture_filter_anisotropic GL_EXT_texture_compression_s3tc GL_EXT_texture_compression_dxt1 GL_EXT_texture_compression_rgtc GL_EXT_texture_format_BGRA8888 GL_OES_compressed_ETC1_RGB8_texture GL_OES_depth24 GL_OES_element_index_uint GL_OES_fbo_render_mipmap GL_OES_mapbuffer GL_OES_rgb8_rgba8 GL_OES_standard_derivatives GL_OES_stencil8 GL_OES_texture_3D GL_OES_texture_float GL_OES_texture_float_linear GL_OES_texture_half_float GL_OES_texture_half_float_linear GL_OES_texture_npot GL_OES_vertex_half_float GL_EXT_draw_instanced GL_EXT_texture_sRGB_decode GL_OES_EGL_image GL_OES_depth_texture GL_OES_packed_depth_stencil GL_EXT_texture_type_2_10_10_10_REV GL_NV_conditional_render GL_OES_get_program_binary GL_APPLE_texture_max_level GL_EXT_discard_framebuffer GL_EXT_read_format_bgra GL_EXT_texture_storage GL_NV_pack_subimage GL_NV_texture_barrier GL_EXT_frag_depth GL_NV_fbo_color_attachments GL_OES_EGL_image_external GL_OES_EGL_sync GL_OES_vertex_array_object GL_OES_viewport_array GL_ANGLE_pack_reverse_row_order GL_ANGLE_texture_compression_dxt3 GL_ANGLE_texture_compression_dxt5 GL_EXT_occlusion_query_boolean GL_EXT_robustness GL_EXT_sRGB GL_EXT_texture_rg GL_EXT_unpack_subimage GL_NV_draw_buffers GL_NV_read_buffer GL_NV_read_depth GL_NV_read_depth_stencil GL_NV_read_stencil GL_APPLE_sync GL_EXT_draw_buffers GL_EXT_instanced_arrays GL_EXT_map_buffer_range GL_EXT_shadow_samplers GL_KHR_debug GL_KHR_robustness GL_KHR_texture_compression_astc_hdr GL_KHR_texture_compression_astc_ldr GL_NV_generate_mipmap_sRGB GL_NV_pixel_buffer_object GL_OES_depth_texture_cube_map GL_OES_required_internalformat GL_OES_surfaceless_context GL_EXT_color_buffer_float GL_EXT_debug_label GL_EXT_sRGB_write_control GL_EXT_separate_shader_objects GL_EXT_shader_framebuffer_fetch GL_EXT_shader_group_vote GL_EXT_shader_implicit_conversions GL_EXT_shader_integer_mix GL_EXT_tessellation_point_size GL_EXT_tessellation_shader GL_ANDROID_extension_pack_es31a GL_EXT_base_instance GL_EXT_compressed_ETC1_RGB8_sub_texture GL_EXT_copy_image GL_EXT_draw_buffers_indexed GL_EXT_draw_elements_base_vertex GL_EXT_gpu_shader5 GL_EXT_multi_draw_indirect GL_EXT_polygon_offset_clamp GL_EXT_primitive_bounding_box GL_EXT_render_snorm GL_EXT_shader_io_blocks GL_EXT_texture_border_clamp GL_EXT_texture_buffer GL_EXT_texture_cube_map_array GL_EXT_texture_norm16 GL_EXT_texture_view GL_KHR_blend_equation_advanced GL_KHR_blend_equation_advanced_coherent GL_KHR_context_flush_control GL_KHR_robust_buffer_access_behavior GL_NV_image_formats GL_NV_shader_noperspective_interpolation GL_OES_copy_image GL_OES_draw_buffers_indexed GL_OES_draw_elements_base_vertex GL_OES_gpu_shader5 GL_OES_primitive_bounding_box GL_OES_sample_shading GL_OES_sample_variables GL_OES_shader_io_blocks GL_OES_shader_multisample_interpolation GL_OES_tessellation_point_size GL_OES_tessellation_shader GL_OES_texture_border_clamp GL_OES_texture_buffer GL_OES_texture_cube_map_array GL_OES_texture_stencil8 GL_OES_texture_storage_multisample_2d_array GL_OES_texture_view GL_EXT_blend_func_extended GL_EXT_buffer_storage GL_EXT_float_blend GL_EXT_geometry_point_size GL_EXT_geometry_shader GL_EXT_texture_filter_minmax GL_EXT_texture_sRGB_R8 GL_EXT_texture_sRGB_RG8 GL_KHR_no_error GL_KHR_texture_compression_astc_sliced_3d GL_OES_EGL_image_external_essl3 GL_OES_geometry_point_size GL_OES_geometry_shader GL_OES_shader_image_atomic GL_EXT_clear_texture GL_EXT_clip_cull_distance GL_EXT_conservative_depth GL_EXT_disjoint_timer_query GL_EXT_multisampled_render_to_texture GL_EXT_multisampled_render_to_texture2 GL_EXT_texture_compression_s3tc_srgb GL_MESA_shader_integer_functions GL_EXT_clip_control GL_EXT_color_buffer_half_float GL_EXT_memory_object GL_EXT_memory_object_fd GL_EXT_semaphore GL_EXT_semaphore_fd GL_EXT_texture_compression_bptc GL_EXT_texture_mirror_clamp_to_edge GL_KHR_parallel_shader_compile GL_EXT_EGL_image_storage GL_EXT_shader_framebuffer_fetch_non_coherent GL_MESA_framebuffer_flip_y GL_EXT_demote_to_helper_invocation GL_EXT_depth_clamp GL_EXT_texture_query_lod GL_MESA_sampler_objects GL_EXT_EGL_image_storage_compression GL_EXT_texture_storage_compression GL_MESA_bgra GL_MESA_texture_const_bandwidth GL_EXT_shader_clock "
+===================================
+Rendered 120 frames in 2.008390 sec (59.749353 fps)
+Rendered 240 frames in 4.016652 sec (59.751252 fps)
+Rendered 360 frames in 6.025128 sec (59.749771 fps)
+Rendered 480 frames in 8.033715 sec (59.748196 fps)
+Rendered 600 frames in 10.042205 sec (59.747836 fps)
+Rendered 720 frames in 12.050311 sec (59.749495 fps)
+Rendered 840 frames in 14.058509 sec (59.750292 fps)
+Rendered 960 frames in 16.066528 sec (59.751555 fps)
+...
 ```
-    /root ▓▒░                                                                                                                                           ░▒▓ 04:13:59  ─╮
+
+
+## 🎥 Demo video
+
+> **Coming soon.** The full run, end to end: `insmod`ing `panel_samsung_sofef00.ko` and `msm.ko`, a quick `modetest` to confirm the pipeline is live, then `kmscube --gears` painting the cube. Not recording it tonight.
+
+<!-- embed the video / link here once recorded -->
+
+---
+
+
+## Sway (with Vulkan backend)
+
+```
+[root@localhost ~]# sway
+00:00:01.996  [seatd/server.c:145] New client connected (pid: 2371, uid: 0, gid: 0)
+00:00:01.997  [seatd/seat.c:248] Added client 1 to seat0
+00:00:01.997  [seatd/seat.c:584] Opened client 1 on seat0
+00:00:00.637 [sway/config/output.c:1219] failed to execute 'swaybg' (background configuration probably not applied): No such file or directory
+dbus-update-activation-environment: error: unable to connect to D-Bus: Using X11 for dbus-daemon autolaunch was disabled at compile time, set your DBUS_SESSION_BUS_ADDRESS instead
+Failed to connect to user scope bus via local transport: No such file or directory
+Failed to connect to user scope bus via local transport: No such file or directory
+00:00:00.037 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
+```
+
+After installing `swaybg` the screen does show more than a pitful taskbar:
+
+
+<p align="center">
+  <img src="assets/sway.jpg" alt="Sway bonsai logo on the backported 5.19 MSM DRM driver" width="600">
+  <br>
+</p>
+
+I am on an Arch linux rootfs BTW.
+
+```
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:253] Vulkan device: 'Turnip Adreno (TM) 630'
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:254]   Device type: 'integrated'
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:255]   Supported API version: 1.3.348
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:256]   Driver version: 26.1.3
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:344]   Driver name: turnip Mesa driver (Mesa 26.1.3-arch1.2)
+00:00:00.464 [wlr] [render/vulkan/vulkan.c:364] Found matching Vulkan physical device: Turnip Adreno (TM) 630
+```
+
+---
+
+## Hyprland
+
+```
+    ~ ▓▒░                                                                                                                                               ░▒▓ 04:13:59  ─╮
 ❯ HYPRLAND_TRACE=1 AQ_TRACE=1 hyprland                                                                                                                                    ─╯
 Welcome to Hyprland!
 

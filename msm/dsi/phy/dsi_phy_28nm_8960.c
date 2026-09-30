@@ -385,9 +385,13 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 {
 	char *clk_name, *parent_name, *vco_name;
 	struct clk_init_data vco_init = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "ref",
 		},
+#else
+		.parent_names = (const char *[]){ "pxo" },
+#endif
 		.num_parents = 1,
 		.flags = CLK_IGNORE_UNUSED,
 		.ops = &clk_ops_dsi_pll_28nm_vco,

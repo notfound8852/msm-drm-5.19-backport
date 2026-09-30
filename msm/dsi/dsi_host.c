@@ -1310,11 +1310,11 @@ static int dsi_cmd_dma_add(struct msm_dsi_host *msm_host,
 	int ret;
 	u8 *data;
 
-	ret = msm_dsi_create_packet(&packet, msg);
-
 #if LINUX_VERSION_CODE < KERNEL_VERSION(0, 0, 0)
 	/* I will omit using this all together just to avoid any nonsense with Android CAFs */
 	ret = mipi_dsi_create_packet(&packet, msg);
+#else
+	ret = msm_dsi_create_packet(&packet, msg);
 #endif
 	if (ret) {
 		pr_err("%s: create packet failed, %d\n", __func__, ret);

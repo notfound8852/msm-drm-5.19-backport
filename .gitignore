@@ -8,5 +8,6 @@
 .*
 
 !.gitignore
+!config/.config
 
 Module.symvers

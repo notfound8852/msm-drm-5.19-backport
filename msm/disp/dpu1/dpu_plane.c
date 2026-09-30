@@ -996,115 +996,21 @@ static int dpu_plane_check_inline_rotation(struct dpu_plane *pdpu,
 
 	return 0;
 }
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+
 static int dpu_plane_atomic_check(struct drm_plane *plane,
-                  struct drm_plane_state *state)
-{
-	int ret = 0, min_scale;
-	struct dpu_plane *pdpu = to_dpu_plane(plane);
-    struct dpu_plane_state *pstate = to_dpu_plane_state(state);
-	const struct drm_crtc_state *crtc_state = NULL;
-	const struct dpu_format *fmt;
-	struct drm_rect src, dst, fb_rect = { 0 };
-	uint32_t min_src_size, max_linewidth;
-	unsigned int rotation;
-	uint32_t supported_rotations;
-	const struct dpu_sspp_cfg *pipe_hw_caps = pdpu->pipe_hw->cap;
-	const struct dpu_sspp_sub_blks *sblk = pdpu->pipe_hw->cap->sblk;
-
-    if (state->crtc) {
-        crtc_state = drm_atomic_get_new_crtc_state(state->state,
-                               state->crtc);
-    }
-	min_scale = FRAC_16_16(1, sblk->maxupscale);
-    ret = drm_atomic_helper_check_plane_state(state, crtc_state,
-						  min_scale,
-						  sblk->maxdwnscale << 16,
-						  true, true);
-	if (ret) {
-		DPU_DEBUG_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
-		return ret;
-	}
-
-    if (!state->visible)
-		return 0;
-	src.x1 = state->src_x >> 16;
-	src.y1 = state->src_y >> 16;
-	src.x2 = src.x1 + (state->src_w >> 16);
-	src.y2 = src.y1 + (state->src_h >> 16);
-
-    dst = drm_plane_state_dest(state);
-
-	fb_rect.x2 = state->fb->width;
-	fb_rect.y2 = state->fb->height;
-
-	max_linewidth = pdpu->catalog->caps->max_linewidth;
-
-	fmt = to_dpu_format(msm_framebuffer_format(state->fb));
-
-	min_src_size = DPU_FORMAT_IS_YUV(fmt) ? 2 : 1;
-
-	if (DPU_FORMAT_IS_YUV(fmt) &&
-		(!(pipe_hw_caps->features & DPU_SSPP_SCALER) ||
-		 !(pipe_hw_caps->features & DPU_SSPP_CSC_ANY))) {
-		DPU_DEBUG_PLANE(pdpu,
-				"plane doesn't have scaler/csc for yuv\n");
-		return -EINVAL;
-
-	/* check src bounds */
-	} else if (!dpu_plane_validate_src(&src, &fb_rect, min_src_size)) {
-		DPU_DEBUG_PLANE(pdpu, "invalid source " DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&src));
-		return -E2BIG;
-
-	/* valid yuv image */
-	} else if (DPU_FORMAT_IS_YUV(fmt) &&
-		   (src.x1 & 0x1 || src.y1 & 0x1 ||
-		    drm_rect_width(&src) & 0x1 ||
-		    drm_rect_height(&src) & 0x1)) {
-		DPU_DEBUG_PLANE(pdpu, "invalid yuv source " DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&src));
-		return -EINVAL;
-
-	/* min dst support */
-	} else if (drm_rect_width(&dst) < 0x1 || drm_rect_height(&dst) < 0x1) {
-		DPU_DEBUG_PLANE(pdpu, "invalid dest rect " DRM_RECT_FMT "\n",
-				DRM_RECT_ARG(&dst));
-		return -EINVAL;
-
-	/* check decimated source width */
-	} else if (drm_rect_width(&src) > max_linewidth) {
-		DPU_DEBUG_PLANE(pdpu, "invalid src " DRM_RECT_FMT " line:%u\n",
-				DRM_RECT_ARG(&src), max_linewidth);
-		return -E2BIG;
-	}
-
-	supported_rotations = DRM_MODE_REFLECT_MASK | DRM_MODE_ROTATE_0;
-
-	if (pipe_hw_caps->features & BIT(DPU_SSPP_INLINE_ROTATION))
-		supported_rotations |= DRM_MODE_ROTATE_90;
-
-	rotation = drm_rotation_simplify(state->rotation,
-					supported_rotations);
-
-	if ((pipe_hw_caps->features & BIT(DPU_SSPP_INLINE_ROTATION)) &&
-		(rotation & DRM_MODE_ROTATE_90)) {
-		ret = dpu_plane_check_inline_rotation(pdpu, sblk, src, fmt);
-		if (ret)
-			return ret;
-	}
-
-	pstate->rotation = rotation;
-	pstate->needs_qos_remap = drm_atomic_crtc_needs_modeset(crtc_state);
-
-	return 0;
-}
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+				   struct drm_atomic_state *state)
 #else
-static int dpu_plane_atomic_check(struct drm_plane *plane,
-				  struct drm_atomic_state *state)
+				   struct drm_plane_state *state)
+#endif
 {
-	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
-										 plane);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
+	struct drm_atomic_state *atomic_state = state;
+#else
+	struct drm_plane_state *new_plane_state = state;
+	struct drm_atomic_state *atomic_state = state->state;
+#endif
 	int ret = 0, min_scale;
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
 	struct dpu_plane_state *pstate = to_dpu_plane_state(new_plane_state);
@@ -1118,18 +1024,18 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 	const struct dpu_sspp_sub_blks *sblk = pdpu->pipe_hw->cap->sblk;
 
 	if (new_plane_state->crtc)
-		crtc_state = drm_atomic_get_new_crtc_state(state,
-							   new_plane_state->crtc);
+		crtc_state = drm_atomic_get_new_crtc_state(atomic_state, new_plane_state->crtc);
 
 	min_scale = FRAC_16_16(1, sblk->maxupscale);
 	ret = drm_atomic_helper_check_plane_state(new_plane_state, crtc_state,
-						  min_scale,
-						  sblk->maxdwnscale << 16,
-						  true, true);
+						   min_scale,
+						   sblk->maxdwnscale << 16,
+						   true, true);
 	if (ret) {
 		DPU_DEBUG_PLANE(pdpu, "Check plane state failed (%d)\n", ret);
 		return ret;
 	}
+
 	if (!new_plane_state->visible)
 		return 0;
 
@@ -1150,10 +1056,9 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 	min_src_size = DPU_FORMAT_IS_YUV(fmt) ? 2 : 1;
 
 	if (DPU_FORMAT_IS_YUV(fmt) &&
-		(!(pipe_hw_caps->features & DPU_SSPP_SCALER) ||
-		 !(pipe_hw_caps->features & DPU_SSPP_CSC_ANY))) {
-		DPU_DEBUG_PLANE(pdpu,
-				"plane doesn't have scaler/csc for yuv\n");
+	    (!(pipe_hw_caps->features & DPU_SSPP_SCALER) ||
+	     !(pipe_hw_caps->features & DPU_SSPP_CSC_ANY))) {
+		DPU_DEBUG_PLANE(pdpu, "plane doesn't have scaler/csc for yuv\n");
 		return -EINVAL;
 
 	/* check src bounds */
@@ -1190,10 +1095,10 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 		supported_rotations |= DRM_MODE_ROTATE_90;
 
 	rotation = drm_rotation_simplify(new_plane_state->rotation,
-					supported_rotations);
+					 supported_rotations);
 
 	if ((pipe_hw_caps->features & BIT(DPU_SSPP_INLINE_ROTATION)) &&
-		(rotation & DRM_MODE_ROTATE_90)) {
+	    (rotation & DRM_MODE_ROTATE_90)) {
 		ret = dpu_plane_check_inline_rotation(pdpu, sblk, src, fmt);
 		if (ret)
 			return ret;
@@ -1204,8 +1109,6 @@ static int dpu_plane_atomic_check(struct drm_plane *plane,
 
 	return 0;
 }
-
-#endif
 
 void dpu_plane_flush(struct drm_plane *plane)
 {
@@ -1296,21 +1199,13 @@ static void dpu_plane_sspp_atomic_update(struct drm_plane *plane)
 
 	pipe_cfg.dst_rect = state->dst;
 
-	/* override for color fill */
-    /* Orignal code
-	if (pdpu->color_fill & DPU_PLANE_COLOR_FILL_FLAG) { */
-		/* skip remaining processing on color fill */
-		/*return;
+	/* Solid fill does not fetch from the framebuffer. */
+	if (pdpu->color_fill & DPU_PLANE_COLOR_FILL_FLAG) {
+		memset(&pipe_cfg.src_rect, 0, sizeof(pipe_cfg.src_rect));
+		_dpu_plane_calc_bw(plane, fb, &pipe_cfg);
+		_dpu_plane_calc_clk(plane, &pipe_cfg);
+		return;
 	}
-    */
-    if (pdpu->color_fill & DPU_PLANE_COLOR_FILL_FLAG) {
-        struct dpu_hw_pipe_cfg color_cfg = pipe_cfg; /* already has dst_rect */
-        /* src same as dst for solid fill */
-        color_cfg.src_rect = color_cfg.dst_rect;
-        _dpu_plane_calc_bw(plane, fb, &color_cfg);
-        _dpu_plane_calc_clk(plane, &color_cfg);
-        return;
-    }
 
 	if (pdpu->pipe_hw->ops.setup_rects) {
 		pdpu->pipe_hw->ops.setup_rects(pdpu->pipe_hw,
@@ -1402,13 +1297,20 @@ static void _dpu_plane_atomic_disable(struct drm_plane *plane)
 		pdpu->pipe_hw->ops.setup_multirect(pdpu->pipe_hw,
 				DPU_SSPP_RECT_SOLO, DPU_SSPP_MULTIRECT_NONE);
 }
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+
 static void dpu_plane_atomic_update(struct drm_plane *plane,
-				struct drm_atomic_state *state)
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+					struct drm_atomic_state *state)
+#else
+					struct drm_plane_state *old_state)
+#endif
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
-									   plane);
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
+#else
+	struct drm_plane_state *new_state = plane->state;
+#endif
 
 	pdpu->is_error = false;
 
@@ -1420,24 +1322,7 @@ static void dpu_plane_atomic_update(struct drm_plane *plane,
 		dpu_plane_sspp_atomic_update(plane);
 	}
 }
-#else
-static void dpu_plane_atomic_update(struct drm_plane *plane,
-                struct drm_plane_state *old_state)
-{
-	struct dpu_plane *pdpu = to_dpu_plane(plane);
-    struct drm_plane_state *state = plane->state;
 
-	pdpu->is_error = false;
-
-	DPU_DEBUG_PLANE(pdpu, "\n");
-
-    if (!state->visible) {
-		_dpu_plane_atomic_disable(plane);
-	} else {
-		dpu_plane_sspp_atomic_update(plane);
-	}
-}
-#endif
 static void dpu_plane_destroy(struct drm_plane *plane)
 {
 	struct dpu_plane *pdpu = plane ? to_dpu_plane(plane) : NULL;
@@ -1725,9 +1610,11 @@ struct drm_plane *dpu_plane_init(struct drm_device *dev,
 
 	drm_plane_create_rotation_property(plane,
 		    DRM_MODE_ROTATE_0, supported_rotations);
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 	drm_plane_enable_fb_damage_clips(plane);
 #endif
+
 	/* success! finalize initialization */
 	drm_plane_helper_add(plane, &dpu_plane_helper_funcs);
 

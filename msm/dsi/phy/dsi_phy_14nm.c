@@ -802,9 +802,13 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 {
 	char clk_name[32], parent[32], vco_name[32];
 	struct clk_init_data vco_init = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "ref",
 		},
+#else
+		.parent_names = (const char *[]){ "xo" },
+#endif
 		.num_parents = 1,
 		.name = vco_name,
 		.flags = CLK_IGNORE_UNUSED,

@@ -6,11 +6,13 @@
  */
 
 #include <drm/drm_fourcc.h>
-#include <drm/drm_util.h>
 
 #include "mdp5_kms.h"
 #include "mdp5_smp.h"
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#include <drm/drm_util.h>
+#endif
 
 struct mdp5_smp {
 	struct drm_device *dev;

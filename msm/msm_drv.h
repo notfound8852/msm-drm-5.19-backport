@@ -32,7 +32,7 @@
 
 #include "drm/drm_shim.h"
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 #include <drm/drm_probe_helper.h>
 #else
 #include <drm/drm_modeset_helper.h>

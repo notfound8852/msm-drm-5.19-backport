@@ -6,7 +6,6 @@ ccflags-$(CONFIG_DRM_MSM_DP) += -I $(srctree)/$(src)/dp
 ccflags-$(CONFIG_DRM_MSM_IS_DOWNSTREAM) += \
 											-include $(srctree)/$(src)/shims/include/uapi/drm/drm.h \
 											-include $(srctree)/$(src)/shims/include/uapi/drm/msm_drm.h \
-											-include $(srctree)/$(src)/shims/include/drm/drm_syncobj.h \
 											-iquote $(srctree)/$(src)/shims/include \
 											-I$(srctree)/$(src)/shims
 

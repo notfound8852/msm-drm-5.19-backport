@@ -370,17 +370,16 @@ static int dpu_kms_global_obj_init(struct dpu_kms *dpu_kms)
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return -ENOMEM;
-#if KERNEL_VERSION(5, 4, 0) < LINUX_VERSION_CODE
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 	drm_atomic_private_obj_init(dpu_kms->dev, &dpu_kms->global_state,
+#else
+	drm_atomic_private_obj_init(&dpu_kms->global_state,
+#endif
 				    &state->base,
 				    &dpu_kms_global_state_funcs);
-#else
-    drm_atomic_private_obj_init(&dpu_kms->global_state,
-                    &state->base,
-                    &dpu_kms_global_state_funcs);
-#endif
 	return 0;
 }
+
 static int dpu_kms_parse_data_bus_icc_path(struct dpu_kms *dpu_kms)
 {
 	struct icc_path *path0;
@@ -1113,12 +1112,17 @@ static int dpu_kms_hw_init(struct msm_kms *kms)
 
 	dpu_kms_parse_data_bus_icc_path(dpu_kms);
 
-//	rc = pm_runtime_resume_and_get(&dpu_kms->pdev->dev);
-    rc = pm_runtime_get_sync(&dpu_kms->pdev->dev);
-	if (rc < 0){
-        pm_runtime_put_noidle(&dpu_kms->pdev->dev);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+	rc = pm_runtime_resume_and_get(&dpu_kms->pdev->dev);
+	if (rc < 0)
 		goto error;
-    }
+#else
+	rc = pm_runtime_get_sync(&dpu_kms->pdev->dev);
+	if (rc < 0) {
+		pm_runtime_put_noidle(&dpu_kms->pdev->dev);
+		goto error;
+	}
+#endif
 
 	dpu_kms->core_rev = readl_relaxed(dpu_kms->mmio + 0x0);
 

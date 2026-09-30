@@ -6,7 +6,6 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_gem_atomic_helper.h>
 
 #include "mdp4_kms.h"
 
@@ -14,6 +13,9 @@
 #include <drm/drm_damage_helper.h>
 #else
 #include <drm/drm_atomic_helper.h>
+#endif
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
+#include <drm/drm_gem_atomic_helper.h>
 #endif
 
 #define DOWN_SCALE_MAX	8
@@ -127,16 +129,28 @@ static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
 
 
 static int mdp4_plane_atomic_check(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 		struct drm_atomic_state *state)
+#else
+		struct drm_plane_state *state)
+#endif
 {
 	return 0;
 }
 
 static void mdp4_plane_atomic_update(struct drm_plane *plane,
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 				     struct drm_atomic_state *state)
+#else
+				     struct drm_plane_state *state)
+#endif
 {
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
+#else
+	struct drm_plane_state *new_state = plane->state;
+#endif
 	int ret;
 
 	ret = mdp4_plane_mode_set(plane,
@@ -411,7 +425,9 @@ struct drm_plane *mdp4_plane_init(struct drm_device *dev,
 
 	mdp4_plane_install_properties(plane, &plane->base);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 	drm_plane_enable_fb_damage_clips(plane);
+#endif
 
 	return plane;
 

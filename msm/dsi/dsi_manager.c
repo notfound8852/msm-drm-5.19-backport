@@ -590,14 +590,15 @@ static void dsi_mgr_bridge_post_disable(struct drm_bridge *bridge)
 disable_phy:
 	dsi_mgr_phy_disable(id);
 }
-/*
+
 static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		const struct drm_display_mode *mode,
 		const struct drm_display_mode *adjusted_mode)
-*/
-static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
-        struct drm_display_mode *mode,
-        struct drm_display_mode *adjusted_mode)
+#else
+		struct drm_display_mode *mode,
+		struct drm_display_mode *adjusted_mode)
+#endif
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -617,9 +618,11 @@ static void dsi_mgr_bridge_mode_set(struct drm_bridge *bridge,
 	if (dsi_mgr_power_on_early(bridge))
 		dsi_mgr_bridge_power_on(bridge);
 }
-/*
+
 static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 						      const struct drm_display_info *info,
+#endif
 						      const struct drm_display_mode *mode)
 {
 	int id = dsi_mgr_bridge_get_id(bridge);
@@ -627,18 +630,6 @@ static enum drm_mode_status dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
 	struct mipi_dsi_host *host = msm_dsi->host;
 
 	return msm_dsi_host_check_dsc(host, mode);
-}
-*/
-static enum drm_mode_status
-dsi_mgr_bridge_mode_valid(struct drm_bridge *bridge,
-              const struct drm_display_mode *mode)
-{
-    int id = dsi_mgr_bridge_get_id(bridge);
-    struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-    struct mipi_dsi_host *host = msm_dsi->host;
-
-    return msm_dsi_host_check_dsc(host,
-                      (struct drm_display_mode *)mode);
 }
 
 static const struct drm_connector_funcs dsi_mgr_connector_funcs = {
@@ -752,7 +743,6 @@ fail:
 	return ERR_PTR(ret);
 }
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
 struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 {
 	struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
@@ -768,15 +758,15 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 	encoder = msm_dsi->encoder;
 
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
 	/*
 	 * Try first to create the bridge without it creating its own
 	 * connector.. currently some bridges support this, and others
 	 * do not (and some support both modes)
 	 */
 	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge,
-			DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+				DRM_BRIDGE_ATTACH_NO_CONNECTOR);
 	if (ret == -EINVAL) {
-		struct drm_connector *connector;
 		struct list_head *connector_list;
 
 		/* link the internal dsi bridge to the external bridge */
@@ -806,46 +796,29 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 	drm_connector_attach_encoder(connector, encoder);
 
 	return connector;
-}
 #else
-struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
-{
-    struct msm_dsi *msm_dsi = dsi_mgr_get_dsi(id);
-    struct drm_device *dev = msm_dsi->dev;
-    struct drm_connector *connector;
-    struct drm_encoder *encoder;
-    struct drm_bridge *int_bridge, *ext_bridge;
-    struct list_head *connector_list;
-    int ret;
+	/* In older kernels (e.g. 4.19 / pre-5.7 bridge attach flags),
+	   bridge always creates its own connector on attach */
+	ret = drm_bridge_attach(encoder, ext_bridge, int_bridge);
+	if (ret) {
+		DRM_ERROR("failed to attach ext bridge: %d\n", ret);
+		return ERR_PTR(ret);
+	}
 
-    int_bridge = msm_dsi->bridge;
-    ext_bridge = msm_dsi->external_bridge =
-            msm_dsi_host_get_bridge(msm_dsi->host);
-    encoder = msm_dsi->encoder;
+	/*
+	 * we need the drm_connector created by the external bridge
+	 * driver (or someone else) to feed it to our driver's
+	 * priv->connector[] list, mainly for msm_fbdev_init()
+	 */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		if (drm_connector_has_possible_encoder(connector, encoder))
+			return connector;
+	}
 
-    /* in 4.19, bridge always creates its own connector on attach */
-    ret = drm_bridge_attach(encoder, ext_bridge, int_bridge);
-    if (ret) {
-        DRM_ERROR("failed to attach ext bridge: %d\n", ret);
-        return ERR_PTR(ret);
-    }
-
-    /*
-     * we need the drm_connector created by the external bridge
-     * driver (or someone else) to feed it to our driver's
-     * priv->connector[] list, mainly for msm_fbdev_init()
-     */
-    connector_list = &dev->mode_config.connector_list;
-
-    /* fish the connector back out that the bridge just registered */
-    list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-        if (drm_connector_has_possible_encoder(connector, encoder))
-            return connector;
-    }
-
-    return ERR_PTR(-ENODEV);
-}
+	return ERR_PTR(-ENODEV);
 #endif
+}
+
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge)
 {
 	drm_bridge_remove(bridge);

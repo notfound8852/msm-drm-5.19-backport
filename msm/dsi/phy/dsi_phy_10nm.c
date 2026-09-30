@@ -574,25 +574,19 @@ static int pll_10nm_register(struct dsi_pll_10nm *pll_10nm, struct clk_hw **prov
 	char clk_name[32], parent[32], vco_name[32];
 	char parent2[32], parent3[32], parent4[32];
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
 	struct clk_init_data vco_init = {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "ref",
 		},
-		.num_parents = 1,
-		.name = vco_name,
-		.flags = CLK_IGNORE_UNUSED,
-		.ops = &clk_ops_dsi_pll_10nm_vco,
-	};
 #else
-	struct clk_init_data vco_init = {
 		.parent_names = (const char *[]){ "xo" },
+#endif
 		.num_parents = 1,
 		.name = vco_name,
 		.flags = CLK_IGNORE_UNUSED,
 		.ops = &clk_ops_dsi_pll_10nm_vco,
 	};
-#endif
 	struct device *dev = &pll_10nm->phy->pdev->dev;
 	struct clk_hw *hw;
 	int ret;

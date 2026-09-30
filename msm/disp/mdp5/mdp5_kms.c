@@ -6,7 +6,6 @@
  */
 
 #include <linux/delay.h>
-#include <linux/interconnect.h>
 #include <linux/of_irq.h>
 
 #include <drm/drm_debugfs.h>
@@ -18,6 +17,12 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 #include "mdp5_kms.h"
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
+#include <linux/interconnect.h>
+#else
+#include "linux/interconnector.h"
+#endif
 
 static int mdp5_hw_init(struct msm_kms *kms)
 {
@@ -136,7 +141,11 @@ static int mdp5_global_obj_init(struct mdp5_kms *mdp5_kms)
 
 	state->mdp5_kms = mdp5_kms;
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 1, 0)
 	drm_atomic_private_obj_init(mdp5_kms->dev, &mdp5_kms->glob_state,
+#else
+	drm_atomic_private_obj_init(&mdp5_kms->glob_state,
+#endif
 				    &state->base,
 				    &mdp5_global_state_funcs);
 	return 0;
@@ -606,12 +615,43 @@ static int mdp5_kms_init(struct drm_device *dev)
 
 	if (config->platform.iommu) {
 		struct msm_mmu *mmu;
+		struct iommu_domain *domain;
 
 		iommu_dev = &pdev->dev;
+#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 6, 0)
 		if (!dev_iommu_fwspec_get(iommu_dev))
+#else
+		if (!iommu_dev->iommu_fwspec)
+#endif
 			iommu_dev = iommu_dev->parent;
 
+		/**
+		 * Downstream Qualcomm kernels tend to associate an IOMMU domain with
+		 * the MDSS device during SMMU initialization based on the DT iommus=
+		 * binding. Reusing that domain avoids creating a second domain that
+		 * is not connected to the active context bank.
+		 *
+		 * If no domain is already associated with the device, fall back to
+		 * allocating one as expected by upstream DRM drivers.
+		 */
+		domain = iommu_get_domain_for_dev(iommu_dev);
+		if (!domain) {
+			DRM_DEV_DEBUG(iommu_dev, "No existing IOMMU domain found, allocating one\n");
+			domain = iommu_domain_alloc(&platform_bus_type);
+		} else {
+			DRM_DEV_DEBUG(iommu_dev, "Using existing IOMMU domain associated with MDSS\n");
+		}
+
+		if (!domain) {
+			DRM_DEV_ERROR(dev->dev, "failed to get or allocate iommu domain\n");
+			return -ENOMEM;
+		}
+
 		mmu = msm_iommu_new(iommu_dev, config->platform.iommu);
+		if (IS_ERR(mmu)) {
+			iommu_domain_free(domain);
+			return PTR_ERR(mmu);
+		}
 
 		aspace = msm_gem_address_space_create(mmu, "mdp5",
 			0x1000, 0x100000000 - 0x1000);
