@@ -129,7 +129,7 @@ static void mdp4_plane_cleanup_fb(struct drm_plane *plane,
 
 
 static int mdp4_plane_atomic_check(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_plane_state *state)
@@ -139,13 +139,13 @@ static int mdp4_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void mdp4_plane_atomic_update(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 				     struct drm_atomic_state *state)
 #else
 				     struct drm_plane_state *state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
 #else

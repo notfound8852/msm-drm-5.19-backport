@@ -11,3 +11,5 @@
 !config/.config
 
 Module.symvers
+built-in.a
+modules.builtin

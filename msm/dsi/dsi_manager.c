@@ -758,7 +758,7 @@ struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id)
 
 	encoder = msm_dsi->encoder;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	/*
 	 * Try first to create the bridge without it creating its own
 	 * connector.. currently some bridges support this, and others

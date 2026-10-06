@@ -271,7 +271,7 @@ void dpu_crtc_complete_commit(struct drm_crtc *crtc);
 struct drm_crtc *dpu_crtc_init(struct drm_device *dev, struct drm_plane *plane,
 			       struct drm_plane *cursor);
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 				   bool in_vblank_irq,
 				   int *vpos, int *hpos,

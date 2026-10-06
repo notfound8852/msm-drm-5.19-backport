@@ -285,7 +285,7 @@ struct mdp5_hw_mixer *mdp5_crtc_get_mixer(struct drm_crtc *crtc);
 struct mdp5_pipeline *mdp5_crtc_get_pipeline(struct drm_crtc *crtc);
 void mdp5_crtc_set_pipeline(struct drm_crtc *crtc);
 void mdp5_crtc_wait_for_commit_done(struct drm_crtc *crtc);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 bool mdp5_crtc_get_scanout_position(struct drm_crtc *crtc,
 				    bool in_vblank_irq,
 				    int *vpos, int *hpos,

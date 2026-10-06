@@ -86,7 +86,7 @@ static enum dpu_crtc_crc_source dpu_crtc_parse_crc_source(const char *src_name)
 
 	return DPU_CRTC_CRC_SOURCE_INVALID;
 }
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 static int dpu_crtc_verify_crc_source(struct drm_crtc *crtc,
 		const char *src_name, size_t *values_cnt)
 {
@@ -104,7 +104,7 @@ static int dpu_crtc_verify_crc_source(struct drm_crtc *crtc,
 	return 0;
 }
 #endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name)
 #else
 static int dpu_crtc_set_crc_source(struct drm_crtc *crtc, const char *src_name, size_t *len)
@@ -222,7 +222,7 @@ static int dpu_crtc_get_crc(struct drm_crtc *crtc)
 	return drm_crtc_add_crc_entry(crtc, true,
 			drm_crtc_accurate_vblank_count(crtc), crcs);
 }
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 static bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 #else
 bool dpu_crtc_get_scanout_position(struct drm_crtc *crtc,
@@ -727,7 +727,7 @@ static void _dpu_crtc_setup_cp_blocks(struct drm_crtc *crtc)
 }
 
 static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_crtc_state *old_crtc_state)
@@ -772,7 +772,7 @@ static void dpu_crtc_atomic_begin(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_atomic_flush(struct drm_crtc *crtc,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_crtc_state *old_crtc_state)
@@ -935,7 +935,7 @@ static void dpu_crtc_reset(struct drm_crtc *crtc)
 
 	cstate = kzalloc(sizeof(*cstate), GFP_KERNEL);
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	if (cstate)
 		__drm_atomic_helper_crtc_reset(crtc, &cstate->base);
 	else
@@ -984,13 +984,13 @@ static void dpu_crtc_atomic_print_state(struct drm_printer *p,
 }
 
 static void dpu_crtc_disable(struct drm_crtc *crtc,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_crtc_state *old_crtc_state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,
 											  crtc);
 #endif
@@ -1056,7 +1056,7 @@ static void dpu_crtc_disable(struct drm_crtc *crtc,
 }
 
 static void dpu_crtc_enable(struct drm_crtc *crtc,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_crtc_state *old_crtc_state)
@@ -1116,13 +1116,13 @@ static bool dpu_crtc_needs_dirtyfb(struct drm_crtc_state *cstate)
 }
 
 static int dpu_crtc_atomic_check(struct drm_crtc *crtc,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 		struct drm_atomic_state *state)
 #else
 		struct drm_crtc_state *state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
 #else
@@ -1555,13 +1555,13 @@ static const struct drm_crtc_funcs dpu_crtc_funcs = {
 	.atomic_destroy_state = dpu_crtc_destroy_state,
 	.atomic_print_state = dpu_crtc_atomic_print_state,
 	.late_register = dpu_crtc_late_register,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	.verify_crc_source = dpu_crtc_verify_crc_source,
 #endif
 	.set_crc_source = dpu_crtc_set_crc_source,
 	.enable_vblank  = msm_crtc_enable_vblank,
 	.disable_vblank = msm_crtc_disable_vblank,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
 #endif
 	.get_vblank_counter = dpu_crtc_get_vblank_counter,
@@ -1573,7 +1573,7 @@ static const struct drm_crtc_helper_funcs dpu_crtc_helper_funcs = {
 	.atomic_check = dpu_crtc_atomic_check,
 	.atomic_begin = dpu_crtc_atomic_begin,
 	.atomic_flush = dpu_crtc_atomic_flush,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	.get_scanout_position = dpu_crtc_get_scanout_position,
 #endif
 };

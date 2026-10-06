@@ -734,7 +734,52 @@ int drm_sched_job_add_implicit_dependencies(struct drm_sched_job *job,
 			return ret;
 		}
 	}
+
 	return 0;
+
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
+	/*
+	 * Mid-range path (5.4 <= KVER < 5.16):
+	 * obj->resv is embedded in drm_gem_object, but modern dma_resv_iter
+	 * and dma_resv_usage_rw do not exist yet.
+	 *
+	 * Use dma_resv_get_fences_rcu to safely extract refcounted implicit
+	 * fences without needing modern iterator primitives.
+	 */
+	struct dma_fence *excl_fence = NULL;
+	struct dma_fence **shared_fences = NULL;
+	unsigned int num_shared = 0, i;
+	int ret;
+
+	ret = dma_resv_get_fences_rcu(obj->resv, write ? &excl_fence : NULL,
+				      &num_shared, &shared_fences);
+	if (ret)
+		return ret;
+
+	if (excl_fence) {
+		ret = drm_sched_job_add_dependency(job, excl_fence);
+		if (ret)
+			goto free_fences;
+	}
+
+	if (write && num_shared) {
+		for (i = 0; i < num_shared; i++) {
+			ret = drm_sched_job_add_dependency(job, shared_fences[i]);
+			if (ret)
+				goto free_fences;
+		}
+	}
+
+	kfree(shared_fences);
+	return 0;
+
+free_fences:
+	if (excl_fence)
+		dma_fence_put(excl_fence);
+	for (i = 0; i < num_shared; i++)
+		dma_fence_put(shared_fences[i]);
+	kfree(shared_fences);
+	return ret;
 #else
 	/*
 	 * Legacy kernels (< 5.16) require driver-specific implementations.

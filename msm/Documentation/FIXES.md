@@ -30,6 +30,8 @@ Additionally, here in this file I am completely disregarding the amount of versi
 
 **Why?:** If we don't let the GMU manage the CX rail it will eat through battery life. This patch is from >=6.6 versions.
 
+---
+
 **Module insmod from userspace:**
 * In msm_mdss.c function name [`inline int dev_gdsc_enable(struct platform_device *pdev)`](../msm_mdss.c#L58)
 	- used in [`msm_mdss_init`](../msm_mdss.c#L368) in file `msm_mdss.c`
@@ -37,10 +39,14 @@ Additionally, here in this file I am completely disregarding the amount of versi
 
 **Why?:** To mimic bootloader hand-off.
 
+---
+
 **Aperture remove conflicting framebuffers:**
 * In msm_fbdev.c function name [`static inline int msm_aperture_remove_framebuffers()`](../msm_fbdev.c#L162)
 
 **Why?:** We need to remove the existing framebuffer so our DRM/KMS FB can take proper control over it.
+
+---
 
 **SMMU; NULL TTBR0 and TTBR1 Context faults**
 * In `disp/dpu1/dpu_kms.c` function [`_dpu_kms_mmu_init`](../disp/dpu1/dpu_kms.c#L1013).
@@ -65,24 +71,27 @@ Additionally, here in this file I am completely disregarding the amount of versi
 [   29.887631] arm-smmu 15000000.apps-smmu: SID=0x880
 ```
 
+---
+
 **performance state votes specifically for 0:**
 * In `dsi/dsi_host.c` function [`dsi_link_clk_disable_6g`](../dsi/dsi_host.c#L638) added checks for `performance state vote`
 * In `disp/dpu1/dpu_kms.c` function [`dpu_runtime_suspend`](../disp/dpu1/dpu_kms.c#L1317) added checks for `performance state vote`
 
 **Why?:** The downstream OPP helpers don't understand what performance lvl `0` means.
 
+---
+
 **pixel_clk_src timings:**
 * In `dsi/dsi_host.c` function [`dsi_link_clk_set_rate_6g`](../dsi/dsi_host.c#L475)
 
 **Why?** For pre 5.11 versions, we avoid `dev_pm_opp_set_rate()` for `clk_set_rate()` in order to NOT get hit with rounding errors.
 
+---
 
-**Panel timeout issue specific to ONLY len 8 bytes:**
+**Panel timeout:**
 * In `dsi/dsi_host.c` search for function [`static int msm_dsi_create_packet`](../dsi/dsi_host.c#L1267) it acts as a replacement for mipi_dsi_create_packet()
 
 **Why?:** To understand why, we need to learn Android CAF behavior.
-
----
 
 ### Android CAF Inversion Quirk
 On Qualcomm Snapdragon platforms, **all DSI command execution utilizes the Command-DMA engine**, regardless of packet length (short 4-byte writes vs. long multi-byte writes).
@@ -146,9 +155,11 @@ We ensured the platform's peripheral image loader remains fully operational at b
 
 **Why?:** 4.19's in-tree `drm_sched` was too old to map the modern engine job model onto — it would NULL-deref inside `drm_sched_entity_pop_job` the moment real work hit it. Backporting the whole thing is what took the GPU from "idles but doesn't work" to *actually* rendering.
 
-**MSM_SUBMIT_BO_NO_IMPLICIT: ** In `msm_gem_submit.c` function [`submit_fence_sync`](../msm_gem_submit.c#L452) we skip sync if userspace wants to opt out..
+---
 
-**Why?:** Modern Mesa expectations...
+**MSM_SUBMIT_BO_NO_IMPLICIT:** In `msm_gem_submit.c` function [`submit_fence_sync`](../msm_gem_submit.c#L452) we skip sync if userspace wants to opt out..
+
+**Why?:** Modern Mesa expectations... Sway literally refuses to work.
 
 ```sway
 00:00:01.120  [seatd/server.c:145] New client connected (pid: 746, uid: 0, gid: 0)
@@ -168,15 +179,29 @@ Let's just assume that file descriptors for the same file probablyshare the file
 00:00:00.057 [swaybar/tray/tray.c:43] Failed to connect to user bus: No such file or directory
 ```
 
+---
+
 **MSM_INFO_SET_METADATA:** Added this from upstream so now we can set the metadata for BO's.
 
-**Why?:** Nobody wants to see, `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
+**Why?:** I'd rather not look at `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
+
+---
 
 **msm_sched_job_add_implicit_dependencies:** Added to `msm_gem_submit.c` (function [`msm_sched_job_add_implicit_dependencies`](../msm_gem_submit.c#L381)) as a 4.19-5.3-compatible reimplementation of upstream's `drm_sched_job_add_implicit_dependencies`.
 
 **Why?:** Upstream's helper (5.16+) assumes `drm_gem_object` embeds `->resv` directly and walks it with `dma_resv_iter`/`dma_resv_usage_rw`. On 4.19, `msm_gem_object` still carries its own `struct reservation_object`, and fences live behind the legacy `fence_excl`/`fence` (shared list) fields with manual RCU handling — there's no iterator to call. Without this, implicit sync (exclusive fence always a dep, shared fences only on write) just doesn't happen, which bites you the moment two jobs touch the same BO without explicit fencing.
 
+---
+
 **Timeline Syncobj & Capability Override (`msm_fops_ioctl`):**
 * In `msm_drv.c` a custom `unlocked_ioctl` wrapper ([`msm_fops_ioctl`](../msm_drv.c#L1095)). It intercepts `DRM_IOCTL_GET_CAP` and all 11 `DRM_IOCTL_SYNCOBJ_*` IOCTLs.
 
 **Why?:** Modern Mesa and Vulkan rely heavily on timeline syncobjs (`DRM_CAP_SYNCOBJ_TIMELINE`). I do not trust all versions across 4.19 till 5.18 to handle syncobj dispatches the same-yes, intercepting just 4 of the new `timeline` ioctls *does* work on 4.19 but all it takes is on little mess up in one function and it all breaks.
+
+---
+
+**Fence deadlines & GPU devfreq boosting:** Added MSM fence deadline handling and GPU devfreq boosting, including compatibility handling. (You'll have to see `msm_fence.c` and `msm_drv.c` plus the `UAPI` changes across `git diff` to see everything that changed.)
+
+**Why?:** Fence deadlines allow latency-sensitive GPU work to request a temporary frequency boost rather than waiting on normal devfreq polling.
+
+---

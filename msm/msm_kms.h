@@ -30,7 +30,7 @@ struct msm_kms_funcs {
 	irqreturn_t (*irq)(struct msm_kms *kms);
 	int (*enable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
 	void (*disable_vblank)(struct msm_kms *kms, struct drm_crtc *crtc);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	/*
 	 * No drm_crtc_helper_funcs.get_scanout_position here, so each
 	 * backend hands its crtc impl to msm_drv.c's drm_driver hook.

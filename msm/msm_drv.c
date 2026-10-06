@@ -43,9 +43,12 @@
  * - 1.7.0 - Add MSM_PARAM_SUSPENDS to access suspend count
  * - 1.8.0 - Add MSM_BO_CACHED_COHERENT for supported GPUs (a6xx)
  * - 1.9.0 - Add MSM_SUBMIT_FENCE_SN_IN
+ * - 1.10.0 - Add MSM_SUBMIT_BO_NO_IMPLICIT
+ * - 1.11.0 - Add wait boost (MSM_WAIT_FENCE_BOOST, MSM_PREP_BOOST)
+ * - 1.12.0 - Add MSM_INFO_SET_METADATA and MSM_INFO_GET_METADATA
  */
 #define MSM_VERSION_MAJOR	1
-#define MSM_VERSION_MINOR	9
+#define MSM_VERSION_MINOR	12
 #define MSM_VERSION_PATCHLEVEL	0
 
 static const struct drm_mode_config_funcs mode_config_funcs = {
@@ -77,7 +80,7 @@ static bool modeset = true;
 MODULE_PARM_DESC(modeset, "Use kernel modesetting [KMS] (1=on (default), 0=disable)");
 module_param(modeset, bool, 0600);
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 static bool msm_driver_get_scanout_position(struct drm_device *dev, unsigned int pipe,
 					    bool in_vblank_irq, int *vpos, int *hpos,
 					    ktime_t *stime, ktime_t *etime,
@@ -375,6 +378,7 @@ static int msm_init_vram(struct drm_device *dev)
 
 	return ret;
 }
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 static int msm_drm_init(struct device *dev, const struct drm_driver *drv)
 #else
@@ -754,11 +758,66 @@ static int msm_ioctl_gem_info_set_iova(struct drm_device *dev,
 	return msm_gem_set_iova(obj, ctx->aspace, iova);
 }
 
-static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
-		__user void *metadata, u32 metadata_size)
+static int msm_ioctl_gem_info_get_metadata(struct drm_gem_object *obj,
+					   __user void *metadata,
+					   u32 *metadata_size)
 {
 	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	void *buf, *new;
+	void *buf = NULL;
+	u32 len;
+	int ret;
+
+	if (!metadata) {
+		/*
+		 * Querying the size is inherently racey, but
+		 * EXT_external_objects expects the app to confirm
+		 * via device and driver UUIDs that the exporter and
+		 * importer versions match. All we can do from the
+		 * kernel side is check the length under obj lock
+		 * when userspace tries to retrieve the metadata.
+		 */
+		*metadata_size = READ_ONCE(msm_obj->metadata_size);
+		return 0;
+	}
+
+	ret = msm_gem_lock_interruptible(obj);
+	if (ret)
+		return ret;
+
+	len = msm_obj->metadata_size;
+
+	if (*metadata_size < len) {
+		*metadata_size = len;
+		msm_gem_unlock(obj);
+		return -ETOOSMALL;
+	}
+
+	/* Avoid copy_to_user() under gem obj lock: */
+	if (len) {
+		buf = kmemdup(msm_obj->metadata, len, GFP_KERNEL);
+		if (!buf) {
+			msm_gem_unlock(obj);
+			return -ENOMEM;
+		}
+	}
+
+	msm_gem_unlock(obj);
+
+	if (len && copy_to_user(metadata, buf, len))
+		ret = -EFAULT;
+	else
+		*metadata_size = len;
+
+	kfree(buf);
+	return ret;
+}
+
+static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
+					   __user void *metadata,
+					   u32 metadata_size)
+{
+	struct msm_gem_object *msm_obj = to_msm_bo(obj);
+	void *buf, *new_metadata;
 	int ret;
 
 	/* Impose a moderate upper bound on metadata size: */
@@ -772,67 +831,23 @@ static int msm_ioctl_gem_info_set_metadata(struct drm_gem_object *obj,
 
 	ret = msm_gem_lock_interruptible(obj);
 	if (ret)
-		goto out;
+		goto out_free;
 
-	new = krealloc(msm_obj->metadata, metadata_size, GFP_KERNEL);
-	if (!new && metadata_size) {
-		msm_gem_unlock(obj);
+	new_metadata = krealloc(msm_obj->metadata, metadata_size, GFP_KERNEL);
+	if (!new_metadata && metadata_size) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_unlock;
 	}
 
-	msm_obj->metadata = new;
+	msm_obj->metadata = new_metadata;
 	msm_obj->metadata_size = metadata_size;
-	memcpy(msm_obj->metadata, buf, metadata_size);
 
+	if (metadata_size)
+		memcpy(msm_obj->metadata, buf, metadata_size);
+
+out_unlock:
 	msm_gem_unlock(obj);
-
-out:
-	kfree(buf);
-	return ret;
-}
-
-static int msm_ioctl_gem_info_get_metadata(struct drm_gem_object *obj,
-		__user void *metadata, u32 *metadata_size)
-{
-	struct msm_gem_object *msm_obj = to_msm_bo(obj);
-	void *buf = NULL;
-	u32 len;
-	int ret;
-
-	ret = msm_gem_lock_interruptible(obj);
-	if (ret)
-		return ret;
-
-	len = msm_obj->metadata_size;
-
-	/*
-	 * A NULL user pointer, or one whose buffer is too small, is treated as
-	 * a size query: report the required size and (for the too-small case)
-	 * fail so userspace can retry with a big enough buffer.
-	 */
-	if (!metadata || *metadata_size < len) {
-		bool too_small = metadata && (*metadata_size < len);
-
-		*metadata_size = len;
-		msm_gem_unlock(obj);
-		return too_small ? -EINVAL : 0;
-	}
-
-	if (len) {
-		buf = kmemdup(msm_obj->metadata, len, GFP_KERNEL);
-		if (!buf) {
-			msm_gem_unlock(obj);
-			return -ENOMEM;
-		}
-	}
-	*metadata_size = len;
-
-	msm_gem_unlock(obj);
-
-	if (len && copy_to_user(metadata, buf, len))
-		ret = -EFAULT;
-
+out_free:
 	kfree(buf);
 	return ret;
 }
@@ -934,7 +949,7 @@ static int msm_ioctl_gem_info(struct drm_device *dev, void *data,
 }
 
 static int wait_fence(struct msm_gpu_submitqueue *queue, uint32_t fence_id,
-		      ktime_t timeout)
+		      ktime_t timeout, uint32_t flags)
 {
 	struct dma_fence *fence;
 	int ret;
@@ -964,6 +979,9 @@ static int wait_fence(struct msm_gpu_submitqueue *queue, uint32_t fence_id,
 	if (!fence)
 		return 0;
 
+	if (flags & MSM_WAIT_FENCE_BOOST)
+		msm_fence_set_deadline(fence, ktime_get());
+
 	ret = dma_fence_wait_timeout(fence, true, timeout_to_jiffies(&timeout));
 	if (ret == 0) {
 		ret = -ETIMEDOUT;
@@ -984,8 +1002,8 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 	struct msm_gpu_submitqueue *queue;
 	int ret;
 
-	if (args->pad) {
-		DRM_ERROR("invalid pad: %08x\n", args->pad);
+	if (args->flags & ~MSM_WAIT_FENCE_FLAGS) {
+		DRM_ERROR("invalid flags: %08x\n", args->flags);
 		return -EINVAL;
 	}
 
@@ -996,7 +1014,8 @@ static int msm_ioctl_wait_fence(struct drm_device *dev, void *data,
 	if (!queue)
 		return -ENOENT;
 
-	ret = wait_fence(queue, args->fence, to_ktime(args->timeout));
+	ret = wait_fence(queue, args->fence, to_ktime(args->timeout),
+			 args->flags);
 
 	msm_submitqueue_put(queue);
 
@@ -1209,6 +1228,7 @@ static const struct vm_operations_struct vm_ops = {
     .open = drm_gem_vm_open,
     .close = drm_gem_vm_close,
 };
+
 #if LINUX_VERSION_CODE > KERNEL_VERSION(5, 10, 0)
 static const struct drm_driver msm_driver = {
 #else
@@ -1235,7 +1255,7 @@ static struct drm_driver msm_driver = {
 	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= drm_gem_prime_import,
 #endif
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 10, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
 	.gem_free_object_unlocked	= msm_gem_free_object,
 	.gem_prime_export	= drm_gem_prime_export,
 	.gem_prime_import	= drm_gem_prime_import,
@@ -1246,7 +1266,7 @@ static struct drm_driver msm_driver = {
 	.gem_prime_vunmap	= msm_gem_prime_vunmap,
 	.gem_vm_ops			= &vm_ops,
 #endif
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
 	.get_scanout_position = msm_driver_get_scanout_position,
 	.get_vblank_timestamp = msm_driver_get_vblank_timestamp,
 #endif

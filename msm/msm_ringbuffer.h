@@ -7,12 +7,8 @@
 #ifndef __MSM_RINGBUFFER_H__
 #define __MSM_RINGBUFFER_H__
 
-#include "msm_drv.h"
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 17, 0)
 #include "drm/gpu_scheduler.h"
-#else
-#include "shims/include/drm/gpu_scheduler.h"
-#endif
+#include "msm_drv.h"
 
 #define rbmemptr(ring, member)  \
 	((ring)->memptrs_iova + offsetof(struct msm_rbmemptrs, member))

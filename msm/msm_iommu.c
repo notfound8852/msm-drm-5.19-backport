@@ -6,7 +6,7 @@
 #include <linux/io-pgtable.h>
 #include "msm_drv.h"
 #include "msm_mmu.h"
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
 #include "compat_and_shims/iommu_shims.h"
 #endif
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)

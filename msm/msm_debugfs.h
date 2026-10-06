@@ -8,7 +8,7 @@
 #define __MSM_DEBUGFS_H__
 
 #ifdef CONFIG_DEBUG_FS
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 void msm_debugfs_init(struct drm_minor *minor);
 #else
 int msm_debugfs_init(struct drm_minor *minor);

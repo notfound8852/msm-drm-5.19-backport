@@ -27,7 +27,7 @@
 #else
 #include "compat_and_shims/nvmem-consumer.h"
 #endif
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
 #include "compat_and_shims/iommu_shims.h"
 #endif
 

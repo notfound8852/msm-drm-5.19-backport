@@ -121,6 +121,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		}
 
 		msm_obj->pages = p;
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
 		msm_obj->sgt = drm_prime_pages_to_sg(obj->dev, p, npages);
 #else
@@ -911,12 +912,22 @@ int msm_gem_cpu_prep(struct drm_gem_object *obj, uint32_t op, ktime_t *timeout)
 	unsigned long remain =
 		op & MSM_PREP_NOSYNC ? 0 : timeout_to_jiffies(timeout);
 	long ret;
+
+	if (op & MSM_PREP_BOOST) {
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
+		msm_resv_set_deadline(obj->resv, dma_resv_usage_rw(write),
+				      ktime_get());
+#else
+		msm_resv_set_deadline(msm_obj->resv, write, ktime_get());
+#endif
+	}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 	ret = dma_resv_wait_timeout(obj->resv, dma_resv_usage_rw(write),
 #else
     ret = reservation_object_wait_timeout_rcu(msm_obj->resv, write,
-				    true,  remain);
 #endif
+				    true,  remain);
 
 	if (ret == 0)
 		return remain == 0 ? -EBUSY : -ETIMEDOUT;
@@ -1017,6 +1028,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 
 		seq_puts(m, "\n");
 	}
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	dma_resv_describe(robj, m);
 #else
@@ -1102,6 +1114,7 @@ void msm_gem_free_object(struct drm_gem_object *obj)
 	kfree(msm_obj->metadata);
 	kfree(msm_obj);
 }
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 static int msm_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct *vma)
 #else
@@ -1139,6 +1152,7 @@ int msm_gem_new_handle(struct drm_device *dev, struct drm_file *file,
 
 	return ret;
 }
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 15, 0)
 static const struct vm_operations_struct vm_ops = {
 	.fault = msm_gem_fault,
@@ -1157,6 +1171,7 @@ static const struct drm_gem_object_funcs msm_gem_object_funcs = {
 	.vm_ops = &vm_ops,
 };
 #endif
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
 static int msm_gem_new_impl(struct drm_device *dev,
         uint32_t size, uint32_t flags,
@@ -1167,7 +1182,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 		uint32_t size, uint32_t flags,
 		struct drm_gem_object **obj)
 #endif
-
 {
 	struct msm_drm_private *priv = dev->dev_private;
 	struct msm_gem_object *msm_obj;
@@ -1194,15 +1208,13 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	msm_obj->flags = flags;
 	msm_obj->madv = MSM_MADV_WILLNEED;
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
-
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
     if (resv) {
         msm_obj->resv = resv;
     } else {
         msm_obj->resv = &msm_obj->_resv;
         reservation_object_init(msm_obj->resv);
     }
-
 #endif
 
 	INIT_LIST_HEAD(&msm_obj->node);
@@ -1239,6 +1251,7 @@ struct drm_gem_object *msm_gem_new(struct drm_device *dev, uint32_t size, uint32
 	 */
 	if (size == 0)
 		return ERR_PTR(-EINVAL);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
     ret = msm_gem_new_impl(dev, size, flags, &obj, NULL);
 #else
@@ -1326,6 +1339,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 	}
 
 	size = PAGE_ALIGN(dmabuf->size);
+
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
     ret = msm_gem_new_impl(dev, size, MSM_BO_WC, &obj, dmabuf->resv);
 #else
@@ -1348,7 +1362,7 @@ struct drm_gem_object *msm_gem_import(struct drm_device *dev,
 		goto fail;
 	}
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
 	ret = drm_prime_sg_to_page_array(sgt, msm_obj->pages, npages);
 #else
     ret = drm_prime_sg_to_page_addr_arrays(sgt, msm_obj->pages, NULL, npages);

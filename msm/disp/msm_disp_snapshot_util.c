@@ -93,7 +93,8 @@ void msm_disp_state_print(struct msm_disp_state *state, struct drm_printer *p)
 	}
 
 	drm_printf(p, "===================dpu drm state================\n");
-#if KERNEL_VERSION(4, 19, 0) >= LINUX_VERSION_CODE
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
 	if (state->atomic_state)
 		drm_atomic_print_new_state(state->atomic_state, p);
 #endif

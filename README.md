@@ -2,9 +2,14 @@
 
 A backport of the **Mainline MSM DRM/KMS driver from Linux 5.19** to downstream Linux kernels, providing a modern DRM/KMS + Adreno graphics stack on vendor kernel bases.
 
-I have tested older MSM versions but they mostly an experiment.
+I have tested older MSM versions but they were mostly experiments.
 
 > **Current status: Working (and being worked on.)**
+
+## Project Scope
+
+The goal of this project is to support Kernel versions from 4.19 **till** 5.19.
+
 
 The driver has been tested end-to-end on a **OnePlus 6 (SDM845)** with a downstream 4.19 kernel, including:
 
@@ -27,17 +32,17 @@ The driver has been tested end-to-end on a **OnePlus 6 (SDM845)** with a downstr
 
 The primary development platform is:
 
-| Component   | Configuration                                   |
-| ----------- | ----------------------------------------------- |
-| Device      | OnePlus 6 (`enchilada`) / OnePlus 6T (`fajita`) |
-| SoC         | Qualcomm Snapdragon 845 (`SDM845`)              |
-| GPU         | Adreno 630 (`A630`)                             |
-| Kernel      | Downstream Linux 4.19                           |
-| DRM source  | Linux 5.19                                      |
-| Panel       | Mainline Linux 6.6 panel driver                 |
-| Userspace   | Arch Linux / Andrunix                           |
-| Vulkan      | Mesa Freedreno / Turnip                         |
-| Compositors | Sway, Hyprland                                  |
+| Component | Configuration |
+| --- | --- |
+| Device | OnePlus 6 (`enchilada`) / OnePlus 6T (`fajita`) |
+| SoC | Qualcomm Snapdragon 845 (`SDM845`) |
+| GPU | Adreno 630 (`A630`) |
+| Kernel | Downstream Linux 4.19 |
+| MSM DRM source | Mainline Linux 5.19 |
+| Panel | Mainline Linux 6.6 panel driver |
+| Userspace | Arch Linux / [Andrunix](https://github.com/notfound8852/Andrunix) |
+| Vulkan | Mesa Freedreno / Turnip |
+| Compositors | Sway, Hyprland |
 
 The current reference kernel is [EdwinMoq/android_kernel_oneplus_sdm845](https://github.com/EdwinMoq/android_kernel_oneplus_sdm845/tree/lineage-23.2-4.19).
 
@@ -107,13 +112,9 @@ DisplayPort and HDMI support are not currently supported, yet.
 
 ---
 
-## Project Scope
+## Hardware support
 
-The goal of this project is support Kernel versions from 4.19 **till** 5.19.
-
-### Newer hardware support
-
-The stock 5.19 MSM driver isn't nearly enough. Qualcomm's Snapdragon 7s Gen 2, proprietary drivers (`SDE` and `KGSL`) got support around Linux 5.10...
+The stock 5.19 MSM driver isn't nearly enough. Qualcomm's Snapdragon 7 Gen 2, proprietary drivers (`SDE` and `KGSL`) got support around Linux 5.10...
 
 So, support for—
 
@@ -125,7 +126,44 @@ So, support for—
 
 ---
 
-## Shim Architecture
+# The Rules I follow
+
+To keep this project clean, maintainable, and drop-in compatible across different downstream vendor kernels, I follow these self-made rules:
+
+1. **Root directory only.**
+	* Nothing outside of `drivers/gpu/drm/msm` is allowed to be modified. `include/drm` or `include` modifications in general is strictly forbidden.
+	* **Why?:** This removes fragmentation and allows anyone to simply grab my work (`scheduler`, `panel` and `msm`) and toss it into their `drivers/gpu/drm/` directory.
+	* *Only Exception(s)* is absolute necessities like, `MDSS_GDSC`, `gpu_cx_gdsc` and `gpu_gx_gdsc` `power-domains` and miniscule stuff like `pixel_blending` support (added in 4.20, it's 6 total lines not worth making 4 extra helpers over.) For these highly specific cases I have made `patches/`
+
+2. **Locked versions support.**
+	* The module version will *only* support it's own kernel version and everything down to `4.19`.
+	* **Why?:** Anything older than 4.19 slowly starts to lose core atomic helpers and a lot of `pm_runtime` helpers. Anything higher than the module version itself doesn't need to be supported.
+	* **Explanation:** If `msm-drm-backport` was the backport of `5.14`. It should support 4.19<->5.14 kernels.
+
+3. **Shimming over backporting.**
+	* If it's possible to shim a function, **shim it.** Only backport when you it's *actually* necessary.
+	* **Explanation:**
+		* `drm_syncobj`, `drm_dsc_helper`, `gpu_scheduler`, etc are all acceptable to backport.
+		* Something like `qos.c` (from >=5.17) is *not* acceptable. A full refactor of `msm_gpu_devfreq.c` to use 5.16's standards saves us from endless TRACE symbol redefined errors.
+		* `interconnects` and `OPP` are two entire subsystems. Backporting these two would really start testing the limits of **rule 1.** On one hand-yes, you can but `msm-bus` exists and on `>=5.1` (addition of interconnects) OPP is again just a combination of `icc_bw`, `voltage` and `clk_rate`...
+
+4. **Out-of-tree module.**
+	* The driver must be built as an out-of-tree kernel module.
+	* **Why?** This one ties into the previous rule.
+		1. If the MSM module was built into the kernel the linker would explode over the redefined symbols (The `msm/shims/backports` holds verbatim backports.)
+		2. SDE(Snapdragon Display Engine) aka Qualcomm's proprietary DPU driver will fight against the mainline MSM driver since they have a lot of the same function names. (especially `__init` and `__exit`)
+
+5. **Solutions and Documentation**
+	* Any solution/patch must be clean, understandable, and properly documented.
+	* Don't take shortcuts, don't add random fields to driver structs just to make your shims work.
+	* Documentation should leave the reader with *zero* follow up questions.
+
+6. **Upstream coding standards & naming.**
+	* Follow upstream kernel code formatting and naming conventions. (This also minimizes the `LINUX_KERNEL_VERSION` checks)
+
+---
+
+# Shim Architecture
 
 The compatibility infrastructure is organized into three primary categories:
 
@@ -138,7 +176,7 @@ shims/
 └── NOTE.md
 ```
 
-### `backports/`
+## `backports/`
 
 Contains functionality directly brought over from newer kernels with minimal modification.
 
@@ -151,9 +189,9 @@ backports/
 
 `drm_dsc_helper` is mostly to satisfy 5.19's dependencies. (DSI and DPU)
 
-`dma-fence-chain` is a dependancy for `drm_syncobj`. (`ioctls` of which are handled in `msm_drv.c`)
+`dma-fence-chain` is a dependency for `drm_syncobj`. (`ioctls` of which are handled in `msm_drv.c`)
 
-### `compat/`
+## `compat/`
 
 Contains small compatibility functions or macros required where the host kernel is missing a particular API.
 
@@ -163,7 +201,7 @@ compat/
 └── dma-fence_missing_func.c
 ```
 
-### `core/`
+## `core/`
 
 Contains the heavy stuff.
 
@@ -187,6 +225,31 @@ core/
 
 # Additional backports
 
+Although the core driver is based on **Linux 5.19**, the backport also includes selected newer MSM functionality where it is required by modern userspace or provides useful performance and compatibility improvements.
+
+The MSM UAPI is currently complete through **1.12.0**.
+
+* **MSM 1.10 — `MSM_SUBMIT_BO_NO_IMPLICIT`**
+
+  * **Required for the tested Vulkan/Wayland stack.**
+  * Allows userspace to explicitly opt out of implicit synchronization when using explicit fencing.
+  * Without this functionality, Vulkan rendering under Sway fails with `VK_ERROR_DEVICE_LOST`.
+  * This was therefore backported as a functional requirement rather than an optional feature.
+
+* **MSM 1.11 — `MSM_WAIT_FENCE_BOOST` / `MSM_PREP_BOOST`**
+
+  * Adds wait/CPU boost functionality and fence deadline handling.
+  * This is an optional performance/latency improvement and is not required.
+
+* **MSM 1.12 — GEM metadata**
+
+  * Adds `MSM_INFO_SET_METADATA` and `MSM_INFO_GET_METADATA`.
+  * Modern Mesa uses this interface for GEM object metadata.
+  * Without it, `MESA: warning: Failed to set BO metadata with DRM_MSM_GEM_INFO: -22`
+
+These additions are layered on top of the **5.19 MSM driver baseline.**
+
+## Outside of the MSM driver
 * `scheduler/` is the GPU scheduler from 5.19 which is a hard requirement in order for this backport to work.
 * `panel/` contains a patched OnePlus 6 panel from `KVER 6.6`.
 * `dtbs/` specifically `sdm845-oneplus-common.dtsi` which is both a backport of the sdm845 mainline `MDSS/DPU/DSI/DSI_PHY/Panel` and `GPU/GMU` stack *and* some of my own implementations.
@@ -242,5 +305,6 @@ But at the same time, I wanna test Mesa compiled against Bionic to all *this* ma
 * [`SHOWCASE.md`](SHOWCASE.md) — logs and userspace validation
 * [`patches/`](patches/) — required host-kernel/device-tree patches
 * [`INTEGRATION.md`](INTEGRATION.md) — kernel integration, build, and device-tree notes
+* [`sdm845-oneplus-common.dtsi`](dtbs/sdm845-oneplus-common.dtsi) — My device trees for the OnePlus 6/6T.
 
 For the original development history and reasoning behind the project, see the git history.

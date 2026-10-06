@@ -998,13 +998,13 @@ static int dpu_plane_check_inline_rotation(struct dpu_plane *pdpu,
 }
 
 static int dpu_plane_atomic_check(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 				   struct drm_atomic_state *state)
 #else
 				   struct drm_plane_state *state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state, plane);
 	struct drm_atomic_state *atomic_state = state;
 #else
@@ -1299,14 +1299,14 @@ static void _dpu_plane_atomic_disable(struct drm_plane *plane)
 }
 
 static void dpu_plane_atomic_update(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 					struct drm_atomic_state *state)
 #else
 					struct drm_plane_state *old_state)
 #endif
 {
 	struct dpu_plane *pdpu = to_dpu_plane(plane);
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state, plane);
 #else
 	struct drm_plane_state *new_state = plane->state;

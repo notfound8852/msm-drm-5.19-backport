@@ -9,16 +9,14 @@
 
 #include <linux/kref.h>
 #include "msm_drv.h"
+#include "drm/gpu_scheduler.h"
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 #include <linux/dma-resv.h>
 #else
 #include <linux/reservation.h>
 #endif
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 17, 0)
-#include "drm/gpu_scheduler.h"
-#else
-#include "include/drm/gpu_scheduler.h"
-#endif
+
 
 /* Make all GEM related WARN_ON()s ratelimited.. when things go wrong they
  * tend to go wrong 1000s of times in a short timespan.
@@ -90,10 +88,11 @@ int msm_gem_map_vma(struct msm_gem_address_space *aspace,
 		struct sg_table *sgt, int size);
 void msm_gem_close_vma(struct msm_gem_address_space *aspace,
 		struct msm_gem_vma *vma);
-// added
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 5, 0)
 vm_fault_t msm_gem_fault(struct vm_fault *vmf);
 #endif
+
 struct msm_gem_object {
 	struct drm_gem_object base;
 
@@ -149,19 +148,16 @@ struct msm_gem_object {
 
 	char name[32]; /* Identifier to print for the debugfs files */
 
-	/*
-	 * Opaque per-bo metadata blob, set/queried by userspace via
-	 * MSM_INFO_SET_METADATA / MSM_INFO_GET_METADATA. Used by Mesa to
-	 * stash tiling/modifier info; the kernel never interprets it.
-	 * Protected by the gem obj lock.
-	 */
+	/* userspace metadata backchannel */
 	void *metadata;
 	u32 metadata_size;
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
+
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
     /* normally (resv == &_resv) except for imported bo's */
-    struct reservation_object *resv; // added patch
-    struct reservation_object _resv; // added patch
+    struct reservation_object *resv;
+    struct reservation_object _resv;
 #endif
+
 	int active_count;
 	int pin_count;
 };
@@ -226,6 +222,7 @@ void msm_gem_describe(struct drm_gem_object *obj, struct seq_file *m,
 		struct msm_gem_stats *stats);
 void msm_gem_describe_objects(struct list_head *list, struct seq_file *m);
 #endif
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 static inline void
 msm_gem_lock(struct drm_gem_object *obj)
@@ -314,14 +311,14 @@ msm_gem_is_locked(struct drm_gem_object *obj)
 	if (!msm_obj || !msm_obj->resv)
 		return false;
 
-	/* 
-	 * In 4.19, 'struct reservation_object' contains a 'struct ww_mutex lock'.
+	/*
+	 * In <5.4, 'struct reservation_object' contains a 'struct ww_mutex lock'.
 	 * We inspect the state of that internal ww_mutex directly.
 	 */
 	return ww_mutex_is_locked(&msm_obj->resv->lock);
 }
-
 #endif
+
 static inline bool is_active(struct msm_gem_object *msm_obj)
 {
 	GEM_WARN_ON(!msm_gem_is_locked(&msm_obj->base));

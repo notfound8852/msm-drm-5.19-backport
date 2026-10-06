@@ -299,7 +299,7 @@ int msm_debugfs_late_init(struct drm_device *dev)
 	ret = late_init_minor(dev->render);
 	return ret;
 }
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 void msm_debugfs_init(struct drm_minor *minor)
 #else
 int msm_debugfs_init(struct drm_minor *minor)
@@ -329,9 +329,8 @@ int msm_debugfs_init(struct drm_minor *minor)
 
 	if (priv->kms && priv->kms->funcs->debugfs_init)
 		priv->kms->funcs->debugfs_init(priv->kms, minor);
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 13, 0)
     return 0;
 #endif
 }
 #endif
-

@@ -637,7 +637,7 @@ error:
 
 void dsi_link_clk_disable_6g(struct msm_dsi_host *msm_host)
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 14, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0)
 	/* Drop the performance state vote */
 	dev_pm_opp_set_rate(&msm_host->pdev->dev, 0);
 #else
@@ -2180,7 +2180,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 	}
 
 	/* do not autoenable, will be enabled later */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 11, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0)
 	ret = devm_request_irq(&pdev->dev, msm_host->irq, dsi_host_irq,
 			IRQF_TRIGGER_HIGH | IRQF_NO_AUTOEN,
 			"dsi_isr", msm_host);
@@ -2196,7 +2196,7 @@ int msm_dsi_host_init(struct msm_dsi *msm_dsi)
 		return ret;
 	}
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0)
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 12, 0)
 	disable_irq(msm_host->irq);
 #endif
 

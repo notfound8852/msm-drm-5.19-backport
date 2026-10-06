@@ -27,9 +27,6 @@
 #endif
 #include <linux/pm_opp.h>
 #include <linux/regulator/consumer.h>
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 14, 0)
-#include <linux/pm_qos.h>
-#endif
 
 struct msm_gem_submit;
 struct msm_gpu_perfcntr;
@@ -104,7 +101,7 @@ struct msm_gpu_devfreq {
 	/** devfreq: devfreq instance */
 	struct devfreq *devfreq;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	/**
 	 * idle_constraint:
 	 *
@@ -143,16 +140,19 @@ struct msm_gpu_devfreq {
 
 	/** idle_time: Time of last transition to idle: */
 	ktime_t idle_time;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	struct devfreq_dev_status average_status;
 #endif
+
 	/**
 	 * idle_work:
 	 *
 	 * Used to delay clamping to idle freq on active->idle transition.
 	 */
 	struct msm_hrtimer_work idle_work;
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	/**
 	 * boost_work:
 	 *

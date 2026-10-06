@@ -710,7 +710,7 @@ int _dpu_hw_sspp_init_debugfs(struct dpu_hw_pipe *hw_pipe, struct dpu_kms *kms, 
 		debugfs_create_dir(sspp_name, entry);
 
 	/* don't error check these */
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 17, 0)
 	debugfs_create_xul("features", 0600,
 			debugfs_root, (unsigned long *)&hw_pipe->cap->features);
 #else

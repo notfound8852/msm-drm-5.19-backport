@@ -349,13 +349,13 @@ static int mdp5_plane_atomic_check_with_state(struct drm_crtc_state *crtc_state,
 }
 
 static int mdp5_plane_atomic_check(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 				   struct drm_atomic_state *state)
 #else
 				   struct drm_plane_state *state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *old_plane_state = drm_atomic_get_old_plane_state(state,
 										 plane);
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
@@ -364,7 +364,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	struct drm_crtc *crtc;
 	struct drm_crtc_state *crtc_state;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	crtc = new_plane_state->crtc ? new_plane_state->crtc : old_plane_state->crtc;
 #else
 	crtc = state->crtc ? state->crtc : plane->state->crtc;
@@ -372,7 +372,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	if (!crtc)
 		return 0;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	crtc_state = drm_atomic_get_existing_crtc_state(state,
 							crtc);
 #else
@@ -381,7 +381,7 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	return mdp5_plane_atomic_check_with_state(crtc_state, new_plane_state);
 #else
 	return mdp5_plane_atomic_check_with_state(crtc_state, state);
@@ -389,14 +389,14 @@ static int mdp5_plane_atomic_check(struct drm_plane *plane,
 }
 
 static void mdp5_plane_atomic_update(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 				     struct drm_atomic_state *state)
 #else
 				     struct drm_plane_state *state)
 #endif
 
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
 #else
@@ -417,13 +417,13 @@ static void mdp5_plane_atomic_update(struct drm_plane *plane,
 }
 
 static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 					 struct drm_atomic_state *state)
 #else
 					 struct drm_plane_state *state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_plane_state = drm_atomic_get_new_plane_state(state,
 										 plane);
 #else
@@ -480,13 +480,13 @@ static int mdp5_plane_atomic_async_check(struct drm_plane *plane,
 }
 
 static void mdp5_plane_atomic_async_update(struct drm_plane *plane,
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 					   struct drm_atomic_state *state)
 #else
 					   struct drm_plane_state *new_state)
 #endif
 {
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 12, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 13, 0)
 	struct drm_plane_state *new_state = drm_atomic_get_new_plane_state(state,
 									   plane);
 #endif

@@ -498,8 +498,29 @@ static int mdp4_kms_init(struct drm_device *dev)
 	mdelay(16);
 
 	if (config->iommu) {
-		struct msm_mmu *mmu = msm_iommu_new(&pdev->dev,
-			config->iommu);
+		struct iommu_domain *domain;
+		struct msm_mmu *mmu;
+
+		/**
+		 * Downstream Qualcomm kernels tend to associate an IOMMU domain with
+		 * the MDSS/MDP device during SMMU initialization based on the DT iommus=
+		 * binding. Reusing that domain avoids creating a second domain that
+		 * is not connected to the active context bank.
+		 *
+		 * If no domain is already associated with the device, fall back to
+		 * using config->iommu as expected by upstream DRM drivers.
+		 */
+		domain = iommu_get_domain_for_dev(&pdev->dev);
+		if (!domain) {
+			DRM_DEV_DEBUG(dev->dev,
+				"No existing IOMMU domain found on dev, using config domain\n");
+			domain = config->iommu;
+		} else {
+			DRM_DEV_DEBUG(dev->dev,
+				"Using existing IOMMU domain associated with device\n");
+		}
+
+		mmu = msm_iommu_new(&pdev->dev, config->iommu);
 
 		aspace  = msm_gem_address_space_create(mmu,
 			"mdp4", 0x1000, 0x100000000 - 0x1000);

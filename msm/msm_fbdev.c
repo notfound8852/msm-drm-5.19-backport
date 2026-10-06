@@ -13,7 +13,7 @@
 #include "msm_gem.h"
 #include "msm_kms.h"
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 14, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
 #include <drm/drm_aperture.h>
 #endif
 
@@ -29,7 +29,8 @@ struct msm_fbdev {
 	struct drm_fb_helper base;
 	struct drm_framebuffer *fb;
 };
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 8, 0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
 static const struct fb_ops msm_fb_ops = {
 #else
 static struct fb_ops msm_fb_ops = {
@@ -236,7 +237,7 @@ struct drm_fb_helper *msm_fbdev_init(struct drm_device *dev)
 		goto fail;
 	}
 
-#if LINUX_VERSION_CODE > KERNEL_VERSION(5, 16, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 14, 0)
 	/* the fw fb could be anywhere in memory */
 	ret = drm_aperture_remove_framebuffers(false, dev->driver);
 	if (ret)

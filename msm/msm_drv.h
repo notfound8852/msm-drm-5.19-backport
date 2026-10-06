@@ -28,6 +28,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_plane_helper.h>
+#include <drm/msm_drm.h>
 #include <drm/drm_gem.h>
 
 #include "drm/drm_shim.h"
@@ -41,13 +42,11 @@
 #include <drm/drm_fb_helper.h>
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 19, 0)
 #include <drm/display/drm_dsc.h>
-#include <drm/msm_drm.h>
 #else
 #include "drm/display/drm_dsc.h"
 #endif
 
-#if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 17, 0)
-#include "drm/msm_drm.h"
+#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 #include "compat_and_shims/devm_compat.h"
 #endif
 #if LINUX_VERSION_CODE <= KERNEL_VERSION(5, 4, 0)
@@ -273,7 +272,7 @@ struct sg_table *msm_gem_prime_get_sg_table(struct drm_gem_object *obj);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 18, 0)
 int msm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, struct iosys_map *map);
-#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) && LINUX_VERSION_CODE <= KERNEL_VERSION(5, 17, 0)
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0) && LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0)
 int msm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 void msm_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map);
 #else

@@ -19,7 +19,7 @@
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 5, 0)
 #include <drm/drm_syncobj.h>
 #else
-#include "include/drm/drm_syncobj.h"
+#include "drm/drm_syncobj.h"
 #endif
 
 /*
@@ -251,7 +251,7 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 		dma_resv_unlock(obj->resv);
 #else
-        reservation_object_unlock(msm_obj->resv);
+		reservation_object_unlock(msm_obj->resv);
 #endif
 }
 
@@ -272,21 +272,20 @@ static int submit_lock_objects(struct msm_gem_submit *submit)
 
 retry:
 	for (i = 0; i < submit->nr_bos; i++) {
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 4, 0)
-		struct msm_gem_object *msm_obj = submit->bos[i].obj;
-#endif
 		if (slow_locked == i)
 			slow_locked = -1;
 
 		contended = i;
 
 		if (!(submit->bos[i].flags & BO_LOCKED)) {
+			struct msm_gem_object *msm_obj = submit->bos[i].obj;
+
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 			ret = dma_resv_lock_interruptible(msm_obj->base.resv,
 							  &submit->ticket);
 #else
-            ret = reservation_object_lock_interruptible(msm_obj->resv,
-                              &submit->ticket);
+			ret = reservation_object_lock_interruptible(msm_obj->resv,
+							  &submit->ticket);
 #endif
 			if (ret)
 				goto fail;
@@ -318,8 +317,8 @@ fail:
 		ret = dma_resv_lock_slow_interruptible(msm_obj->base.resv,
 						       &submit->ticket);
 #else
-        ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
-                &submit->ticket);
+		ret = ww_mutex_lock_slow_interruptible(&msm_obj->resv->lock,
+						       &submit->ticket);
 #endif
 
 		if (!ret) {
@@ -448,7 +447,9 @@ put_fence:
 
 	return ret;
 }
+
 #endif
+
 static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 {
 	int i, ret = 0;
@@ -483,7 +484,8 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		if ((no_implicit ||
 		     (submit->bos[i].flags & MSM_SUBMIT_BO_NO_IMPLICIT)) && !write)
 			continue;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 16, 0)
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
 		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
 							      obj, write);
 #else
